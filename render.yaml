@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: gestor-trafego-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3001
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: OPENAI_API_KEY
+        sync: false
