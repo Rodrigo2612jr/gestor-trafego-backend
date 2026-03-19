@@ -40,6 +40,17 @@ app.use("/api/voice", authMiddleware, require("./routes/voice"));
 app.use("/api/images", authMiddleware, require("./routes/images"));
 app.use("/api/settings", authMiddleware, require("./routes/settings"));
 
+// ─── Sync endpoint ───
+app.post("/api/sync", authMiddleware, async (req, res) => {
+  try {
+    const { syncAll } = require("./services/sync");
+    const results = await syncAll(req.userId);
+    res.json({ ok: true, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── 404 ───
 app.use((_req, res) => {
   res.status(404).json({ error: "Rota não encontrada" });
