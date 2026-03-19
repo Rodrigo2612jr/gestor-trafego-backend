@@ -38,6 +38,42 @@ router.post("/:platform/connect", (req, res) => {
   res.json({ connected: true, account: accountName, lastSync: now, status: "connected" });
 });
 
+// Meta: conectar via token direto (sem OAuth)
+router.post("/meta/connect-token", async (req, res) => {
+  const { access_token, ad_account_id } = req.body;
+  if (!access_token) return res.status(400).json({ error: "access_token é obrigatório" });
+
+  // Valida o token com a API do Meta
+  try {
+    const r = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name&access_token=${encodeURIComponent(access_token)}`);
+    const info = await r.json();
+    if (info.error) return res.status(400).json({ error: "Token inválido: " + info.error.message });
+
+    const now = new Date().toISOString();
+    const accountName = info.name || "Meta Ads";
+
+    // Salva o token
+    const { findOne, insert, update: dbUpdate } = require("../db/database");
+    const existing = findOne("oauth_tokens", t => t.user_id === req.userId && t.platform === "meta");
+    if (existing) {
+      dbUpdate("oauth_tokens", t => t.id === existing.id, () => ({ access_token, expires_at: Date.now() + 5184000000 }));
+    } else {
+      insert("oauth_tokens", { user_id: req.userId, platform: "meta", access_token, refresh_token: null, expires_at: Date.now() + 5184000000, scope: "ads_management,ads_read" });
+    }
+
+    // Salva ad_account_id se informado
+    if (ad_account_id) process.env.META_AD_ACCOUNT_ID = ad_account_id.replace("act_", "");
+
+    update("connections", r => r.user_id === req.userId && r.platform === "meta", () => ({
+      connected: true, status: "connected", last_sync: now, account_name: accountName,
+    }));
+
+    res.json({ connected: true, account: accountName, lastSync: now, status: "connected" });
+  } catch (err) {
+    res.status(500).json({ error: "Erro ao validar token: " + err.message });
+  }
+});
+
 router.post("/:platform/disconnect", (req, res) => {
   const { platform } = req.params;
   update("connections", r => r.user_id === req.userId && r.platform === platform, () => ({
