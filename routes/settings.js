@@ -16,6 +16,7 @@ const ALLOWED_KEYS = [
   "META_APP_ID",
   "META_APP_SECRET",
   "META_AD_ACCOUNT_ID",
+  "META_ACCESS_TOKEN",
 ];
 
 function parseEnv() {
