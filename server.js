@@ -59,13 +59,16 @@ app.get("/api/cron/daily-report", async (_req, res) => {
 
 // ─── Start (local dev) ───
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`\n🚀 Gestor de Tráfego AI — Backend`);
-    console.log(`   Rodando em http://localhost:${PORT}`);
-    console.log(`   Health: http://localhost:${PORT}/api/health\n`);
+  const { initDatabase } = require("./db/database");
+  initDatabase().then(() => {
+    app.listen(PORT, () => {
+      console.log(`\n🚀 Gestor de Tráfego AI — Backend`);
+      console.log(`   Rodando em http://localhost:${PORT}`);
+      console.log(`   Health: http://localhost:${PORT}/api/health\n`);
 
-    const { startScheduler } = require("./services/scheduler");
-    startScheduler();
+      const { startScheduler } = require("./services/scheduler");
+      startScheduler();
+    });
   });
 }
 
