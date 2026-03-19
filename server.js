@@ -40,6 +40,23 @@ app.use("/api/voice", authMiddleware, require("./routes/voice"));
 app.use("/api/images", authMiddleware, require("./routes/images"));
 app.use("/api/settings", authMiddleware, require("./routes/settings"));
 
+// ─── App data (single request carrega tudo) ───
+app.get("/api/app-data", authMiddleware, (req, res) => {
+  const { findAll } = require("./db/database");
+  const uid = req.userId;
+  const connRows = findAll("connections", r => r.user_id === uid);
+  const connections = {};
+  for (const r of connRows) {
+    connections[r.platform] = { connected: !!r.connected, account: r.account_name, lastSync: r.last_sync, status: r.status };
+  }
+  const campaigns  = findAll("campaigns",  r => r.user_id === uid);
+  const creatives  = findAll("creatives",  r => r.user_id === uid);
+  const audiences  = findAll("audiences",  r => r.user_id === uid);
+  const keywords   = findAll("keywords",   r => r.user_id === uid);
+  const alerts     = findAll("alerts",     r => r.user_id === uid && !r.resolved);
+  res.json({ connections, campaigns, creatives, audiences, keywords, alerts });
+});
+
 // ─── Sync endpoint ───
 app.post("/api/sync", authMiddleware, async (req, res) => {
   try {
