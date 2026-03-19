@@ -2,11 +2,12 @@
 const { findOne, insert, update } = require("../db/database");
 
 const SCOPES = ["ads_management", "ads_read", "business_management", "pages_read_engagement", "instagram_basic"];
+const REDIRECT_URI = process.env.META_REDIRECT_URI || "https://gestor-trafego-backend.vercel.app/api/oauth/meta/callback";
 
 function getAuthUrl(state) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
-    redirect_uri: process.env.META_REDIRECT_URI,
+    redirect_uri: REDIRECT_URI,
     response_type: "code",
     scope: SCOPES.join(","),
     state,
@@ -18,7 +19,7 @@ async function exchangeCode(code) {
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
     client_secret: process.env.META_APP_SECRET,
-    redirect_uri: process.env.META_REDIRECT_URI,
+    redirect_uri: REDIRECT_URI,
     code,
   });
   const res = await fetch(`https://graph.facebook.com/v21.0/oauth/access_token?${params}`);
