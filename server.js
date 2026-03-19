@@ -44,13 +44,29 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: "Erro interno do servidor" });
 });
 
-// ─── Start ───
-app.listen(PORT, () => {
-  console.log(`\n🚀 Gestor de Tráfego AI — Backend`);
-  console.log(`   Rodando em http://localhost:${PORT}`);
-  console.log(`   Health: http://localhost:${PORT}/api/health\n`);
-
-  // Start autonomous scheduler (campaign monitoring, alerts, daily reports)
-  const { startScheduler } = require("./services/scheduler");
-  startScheduler();
+// ─── Cron endpoints (used by Vercel Cron Jobs in production) ───
+app.get("/api/cron/monitor", async (_req, res) => {
+  const { monitorCampaigns } = require("./services/scheduler");
+  await monitorCampaigns();
+  res.json({ ok: true });
 });
+
+app.get("/api/cron/daily-report", async (_req, res) => {
+  const { generateDailyReport } = require("./services/scheduler");
+  await generateDailyReport();
+  res.json({ ok: true });
+});
+
+// ─── Start (local dev) ───
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 Gestor de Tráfego AI — Backend`);
+    console.log(`   Rodando em http://localhost:${PORT}`);
+    console.log(`   Health: http://localhost:${PORT}/api/health\n`);
+
+    const { startScheduler } = require("./services/scheduler");
+    startScheduler();
+  });
+}
+
+module.exports = app;
