@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const bcrypt = require("bcryptjs");
 
 const DB_PATH = path.join(__dirname, "..", "data", "db.json");
 
@@ -30,7 +31,27 @@ function load() {
     data = JSON.parse(JSON.stringify(defaultData));
     save();
   }
+  ensureDefaultUser();
   return data;
+}
+
+// Cria admin padrão se não existir nenhum usuário (Render apaga db.json nos restarts)
+function ensureDefaultUser() {
+  if (data.users.length === 0) {
+    const email = process.env.ADMIN_EMAIL || "admin@gestor.com";
+    const pass = process.env.ADMIN_PASSWORD || "123456";
+    const hash = bcrypt.hashSync(pass, 10);
+    data._autoId.users = (data._autoId.users || 0) + 1;
+    const user = { id: data._autoId.users, name: "Admin", email, password: hash, phone: "", role: "admin", company: "", avatar: "", created_at: new Date().toISOString() };
+    data.users.push(user);
+    const platforms = ["google", "meta", "analytics", "tagmanager", "crm", "webhook", "pixel", "api"];
+    for (const p of platforms) {
+      data._autoId.connections = (data._autoId.connections || 0) + 1;
+      data.connections.push({ id: data._autoId.connections, user_id: user.id, platform: p, connected: false, account_name: null, last_sync: null, status: "disconnected", created_at: new Date().toISOString() });
+    }
+    save();
+    console.log(`✅ Usuário admin criado: ${email}`);
+  }
 }
 
 function save() {
