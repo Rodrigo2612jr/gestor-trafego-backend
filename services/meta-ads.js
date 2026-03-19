@@ -1,12 +1,18 @@
 // Meta Marketing API service — fetches real campaign data
 const { getToken } = require("./meta-auth");
+const { findOne } = require("../db/database");
 
 const API = "https://graph.facebook.com/v21.0";
+
+function getAdAccountId(userId) {
+  const tok = findOne("oauth_tokens", t => t.user_id === userId && t.platform === "meta");
+  return tok?.ad_account_id || process.env.META_AD_ACCOUNT_ID || null;
+}
 
 async function fetchCampaigns(userId) {
   const token = getToken(userId);
   if (!token) return [];
-  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const adAccountId = getAdAccountId(userId);
   if (!adAccountId) return [];
 
   const fields = "id,name,status,daily_budget,lifetime_budget,objective";
@@ -70,7 +76,7 @@ async function fetchCampaigns(userId) {
 async function fetchAudiences(userId) {
   const token = getToken(userId);
   if (!token) return [];
-  const adAccountId = process.env.META_AD_ACCOUNT_ID;
+  const adAccountId = getAdAccountId(userId);
   if (!adAccountId) return [];
 
   const res = await fetch(

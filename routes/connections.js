@@ -57,13 +57,13 @@ router.post("/meta/connect-token", async (req, res) => {
     const { findOne, insert, update: dbUpdate } = require("../db/database");
     const existing = findOne("oauth_tokens", t => t.user_id === req.userId && t.platform === "meta");
     if (existing) {
-      dbUpdate("oauth_tokens", t => t.id === existing.id, () => ({ access_token, expires_at: Date.now() + 5184000000 }));
+      dbUpdate("oauth_tokens", t => t.id === existing.id, () => ({ access_token, expires_at: Date.now() + 5184000000, ad_account_id: cleanAccountId }));
     } else {
-      insert("oauth_tokens", { user_id: req.userId, platform: "meta", access_token, refresh_token: null, expires_at: Date.now() + 5184000000, scope: "ads_management,ads_read" });
+      insert("oauth_tokens", { user_id: req.userId, platform: "meta", access_token, refresh_token: null, expires_at: Date.now() + 5184000000, scope: "ads_management,ads_read", ad_account_id: cleanAccountId });
     }
 
-    // Salva ad_account_id se informado
-    if (ad_account_id) process.env.META_AD_ACCOUNT_ID = ad_account_id.replace("act_", "");
+    // Salva ad_account_id no token para persistir entre requests
+    const cleanAccountId = ad_account_id ? ad_account_id.replace("act_", "") : null;
 
     update("connections", r => r.user_id === req.userId && r.platform === "meta", () => ({
       connected: true, status: "connected", last_sync: now, account_name: accountName,
