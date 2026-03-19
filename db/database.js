@@ -88,6 +88,15 @@ function syncUpsert(table, record) {
     .then(({ error }) => { if (error) console.error("[DB Sync] upsert error:", error.message); });
 }
 
+// ─── Sync awaitable (use in critical writes on Vercel) ───
+async function awaitUpsert(table, record) {
+  if (!USE_SUPABASE || !supabase) return;
+  const { error } = await supabase.from("db_records")
+    .upsert({ table_name: table, record_id: record.id, data: record, updated_at: new Date().toISOString() },
+             { onConflict: "table_name,record_id" });
+  if (error) console.error("[DB AwaitSync] upsert error:", error.message);
+}
+
 function syncDelete(table, ids) {
   if (!USE_SUPABASE || !supabase || ids.length === 0) return;
   supabase.from("db_records")
@@ -178,4 +187,4 @@ function remove(table, filterFn) {
 
 function save() { saveToFile(); }
 
-module.exports = { initDatabase, getDb, insert, findAll, findOne, update, remove, save };
+module.exports = { initDatabase, getDb, insert, findAll, findOne, update, remove, save, awaitUpsert };

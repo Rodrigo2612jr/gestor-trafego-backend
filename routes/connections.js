@@ -1,5 +1,5 @@
 const express = require("express");
-const { findAll, findOne, update, remove: dbRemove, insert } = require("../db/database");
+const { findAll, findOne, update, remove: dbRemove, insert, awaitUpsert } = require("../db/database");
 
 const router = express.Router();
 
@@ -67,6 +67,10 @@ router.post("/meta/connect-token", async (req, res) => {
     update("connections", r => r.user_id === req.userId && r.platform === "meta", () => ({
       connected: true, status: "connected", last_sync: now, account_name: accountName,
     }));
+
+    // Aguarda confirmação do Supabase antes de responder (evita perda no serverless)
+    const conn = findOne("connections", r => r.user_id === req.userId && r.platform === "meta");
+    if (conn) await awaitUpsert("connections", conn);
 
     res.json({ connected: true, account: accountName, lastSync: now, status: "connected" });
   } catch (err) {
