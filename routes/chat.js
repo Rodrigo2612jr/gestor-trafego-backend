@@ -1,5 +1,5 @@
 const express = require("express");
-const { findAll, insert, remove, findOne } = require("../db/database");
+const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
 
 const router = express.Router();
@@ -61,6 +61,45 @@ async function executeToolCall(toolCall, userId) {
       } catch (err) {
         return JSON.stringify({ success: false, error: err.message });
       }
+    }
+
+    case "pause_campaign": {
+      const changed = update("campaigns",
+        c => c.id === args.campaign_id && c.user_id === userId,
+        () => ({ status: "Pausada" })
+      );
+      if (changed === 0) return JSON.stringify({ success: false, error: "Campanha não encontrada" });
+      insert("alerts", {
+        user_id: userId,
+        campaign_id: args.campaign_id,
+        type: "pausada_leo",
+        severity: "warning",
+        title: `Campanha pausada pelo Leo`,
+        desc: args.reason,
+        resolved: false,
+      });
+      return JSON.stringify({ success: true, message: `Campanha pausada. Motivo: ${args.reason}` });
+    }
+
+    case "activate_campaign": {
+      const changed = update("campaigns",
+        c => c.id === args.campaign_id && c.user_id === userId,
+        () => ({ status: "Ativa", auto_paused: false })
+      );
+      if (changed === 0) return JSON.stringify({ success: false, error: "Campanha não encontrada" });
+      return JSON.stringify({ success: true, message: "Campanha reativada com sucesso!" });
+    }
+
+    case "create_alert": {
+      const alert = insert("alerts", {
+        user_id: userId,
+        type: "leo_alert",
+        severity: args.severity,
+        title: args.title,
+        desc: args.desc,
+        resolved: false,
+      });
+      return JSON.stringify({ success: true, alert_id: alert.id, message: "Alerta criado!" });
     }
 
     default:

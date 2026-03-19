@@ -53,6 +53,51 @@ const LEO_TOOLS = [
   {
     type: "function",
     function: {
+      name: "pause_campaign",
+      description: "Pausa uma campanha ativa. Use quando o usuário pedir para pausar, parar ou desligar uma campanha, ou quando os dados indicarem desempenho crítico.",
+      parameters: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "number", description: "ID da campanha a pausar" },
+          reason: { type: "string", description: "Motivo da pausa (ex: 'ROAS abaixo de 2x', 'CTR caindo')" },
+        },
+        required: ["campaign_id", "reason"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "activate_campaign",
+      description: "Reativa uma campanha pausada. Use quando o usuário pedir para religar, reativar ou resumir uma campanha.",
+      parameters: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "number", description: "ID da campanha a reativar" },
+        },
+        required: ["campaign_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_alert",
+      description: "Cria um alerta/notificação no sistema para o usuário. Use para avisos importantes sobre campanhas, oportunidades ou problemas detectados.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Título curto do alerta" },
+          desc: { type: "string", description: "Descrição detalhada do alerta com contexto e recomendação" },
+          severity: { type: "string", enum: ["info", "warning", "critical"], description: "Nível de urgência" },
+        },
+        required: ["title", "desc", "severity"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "generate_ad_copy",
       description: "Gera textos completos para anúncios (headlines, descrições, CTAs, hooks). Use quando pedirem copies, textos de anúncio, headlines.",
       parameters: {
@@ -243,7 +288,7 @@ async function speechToText(audioFilePath) {
 async function generateImage(prompt, size = "1024x1024") {
   const openai = getClient();
   const response = await openai.images.generate({
-    model: "gpt-image-1",
+    model: "gpt-image-1.5",
     prompt: `Crie uma imagem de anúncio profissional para produto natural/suplemento para mídia paga (Meta Ads/Google Ads): ${prompt}. Estilo moderno, clean, premium, com paleta de cores naturais (verdes, beges, brancos, dourados). Sem texto na imagem a menos que especificado. Alta qualidade, adequado para anúncios digitais de saúde e bem-estar.`,
     n: 1,
     size,

@@ -49,4 +49,8 @@ app.listen(PORT, () => {
   console.log(`\n🚀 Gestor de Tráfego AI — Backend`);
   console.log(`   Rodando em http://localhost:${PORT}`);
   console.log(`   Health: http://localhost:${PORT}/api/health\n`);
+
+  // Start autonomous scheduler (campaign monitoring, alerts, daily reports)
+  const { startScheduler } = require("./services/scheduler");
+  startScheduler();
 });
