@@ -21,9 +21,16 @@ const defaultData = {
 };
 
 let data = null;
+let initPromise = null;
 
-// ─── Load from Supabase on startup ───
+// ─── Load from Supabase on startup (idempotent) ───
 async function initDatabase() {
+  if (initPromise) return initPromise;
+  initPromise = _doInit();
+  return initPromise;
+}
+
+async function _doInit() {
   if (USE_SUPABASE) {
     try {
       const { data: rows, error } = await supabase

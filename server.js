@@ -10,6 +10,13 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json({ limit: "2mb" }));
 
+// ─── Ensure DB initialized on every request (critical for Vercel serverless) ───
+const { initDatabase } = require("./db/database");
+app.use(async (_req, _res, next) => {
+  await initDatabase();
+  next();
+});
+
 // ─── Health check ───
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
