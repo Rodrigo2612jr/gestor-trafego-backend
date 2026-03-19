@@ -8,7 +8,9 @@ const { insert, findAll } = require("../db/database");
 const router = express.Router();
 
 // ─── Multer config for image uploads ───
-const uploadDir = path.join(__dirname, "..", "data", "uploads", "images");
+const uploadDir = process.env.VERCEL
+  ? "/tmp/uploads/images"
+  : path.join(__dirname, "..", "data", "uploads", "images");
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({

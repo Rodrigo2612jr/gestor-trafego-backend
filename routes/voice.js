@@ -8,7 +8,9 @@ const { textToSpeech, speechToText, chatCompletion } = require("../services/open
 const router = express.Router();
 
 // Configure multer for audio uploads
-const uploadDir = path.join(__dirname, "..", "data", "uploads");
+const uploadDir = process.env.VERCEL
+  ? "/tmp/uploads"
+  : path.join(__dirname, "..", "data", "uploads");
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
