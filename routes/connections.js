@@ -39,6 +39,7 @@ router.post("/:platform/connect", (req, res) => {
 });
 
 // Meta: conectar via token direto (sem OAuth)
+const { syncAll } = require("../services/sync");
 router.post("/meta/connect-token", async (req, res) => {
   const { access_token, ad_account_id } = req.body;
   if (!access_token) return res.status(400).json({ error: "access_token é obrigatório" });
@@ -68,9 +69,12 @@ router.post("/meta/connect-token", async (req, res) => {
       connected: true, status: "connected", last_sync: now, account_name: accountName,
     }));
 
-    // Aguarda confirmação do Supabase antes de responder (evita perda no serverless)
+    // Aguarda confirmação do Supabase antes de responder
     const conn = findOne("connections", r => r.user_id === req.userId && r.platform === "meta");
     if (conn) await awaitUpsert("connections", conn);
+
+    // Dispara sync em background para buscar campanhas do Meta
+    syncAll(req.userId).catch(err => console.error("Meta sync error:", err.message));
 
     res.json({ connected: true, account: accountName, lastSync: now, status: "connected" });
   } catch (err) {
