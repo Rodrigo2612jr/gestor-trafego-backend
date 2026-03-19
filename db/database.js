@@ -2,7 +2,10 @@ const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 
-const DB_PATH = path.join(__dirname, "..", "data", "db.json");
+// Vercel has read-only filesystem except /tmp
+const DB_PATH = process.env.VERCEL
+  ? "/tmp/db.json"
+  : path.join(__dirname, "..", "data", "db.json");
 
 const defaultData = {
   _autoId: { users: 0, connections: 0, campaigns: 0, creatives: 0, audiences: 0, keywords: 0, alerts: 0, chat_messages: 0, reports: 0, oauth_tokens: 0, settings: 0, sync_logs: 0 },
