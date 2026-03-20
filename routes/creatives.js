@@ -19,12 +19,21 @@ router.post("/", (req, res) => {
 
 router.put("/:id", (req, res) => {
   const id = Number(req.params.id);
-  const { name, status, format, channel } = req.body;
+  const { name, status, format, channel, category } = req.body;
   const changes = update("creatives", r => r.id === id && r.user_id === req.userId, (r) => ({
-    name: name ?? r.name, status: status ?? r.status, format: format ?? r.format, channel: channel ?? r.channel,
+    name: name ?? r.name, status: status ?? r.status, format: format ?? r.format, channel: channel ?? r.channel, category: category ?? r.category,
   }));
   if (!changes) return res.status(404).json({ error: "Criativo não encontrado" });
   res.json(findOne("creatives", r => r.id === id));
+});
+
+router.patch("/:id/image", (req, res) => {
+  const id = Number(req.params.id);
+  const { image_url } = req.body;
+  if (!image_url) return res.status(400).json({ error: "image_url é obrigatório" });
+  const changed = update("creatives", r => r.id === id && r.user_id === req.userId, () => ({ image_url }));
+  if (!changed) return res.status(404).json({ error: "Criativo não encontrado" });
+  res.json({ success: true });
 });
 
 router.delete("/:id", (req, res) => {
