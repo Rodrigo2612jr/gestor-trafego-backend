@@ -15,9 +15,9 @@ const DB_PATH = process.env.VERCEL
   : path.join(__dirname, "..", "data", "db.json");
 
 const defaultData = {
-  _autoId: { users: 0, connections: 0, campaigns: 0, creatives: 0, audiences: 0, keywords: 0, alerts: 0, chat_messages: 0, reports: 0, oauth_tokens: 0, settings: 0, sync_logs: 0 },
+  _autoId: { users: 0, connections: 0, campaigns: 0, creatives: 0, audiences: 0, keywords: 0, alerts: 0, chat_messages: 0, reports: 0, oauth_tokens: 0, settings: 0, sync_logs: 0, adsets: 0, ads: 0 },
   users: [], connections: [], campaigns: [], creatives: [], audiences: [],
-  keywords: [], alerts: [], chat_messages: [], reports: [], oauth_tokens: [], settings: [], sync_logs: [],
+  keywords: [], alerts: [], chat_messages: [], reports: [], oauth_tokens: [], settings: [], sync_logs: [], adsets: [], ads: [],
 };
 
 let data = null;

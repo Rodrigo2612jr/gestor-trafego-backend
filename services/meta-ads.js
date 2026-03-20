@@ -107,6 +107,63 @@ function mapObjective(objective = "") {
   return "OUTCOME_SALES"; // default
 }
 
+// ─── Map optimization goal to Meta billing event ───
+const GOAL_MAP = {
+  CONVERSIONS:      { optimization_goal: "OFFSITE_CONVERSIONS", billing_event: "IMPRESSIONS" },
+  TRAFFIC:          { optimization_goal: "LINK_CLICKS",         billing_event: "LINK_CLICKS" },
+  REACH:            { optimization_goal: "REACH",               billing_event: "IMPRESSIONS" },
+  LEAD_GENERATION:  { optimization_goal: "LEAD_GENERATION",     billing_event: "IMPRESSIONS" },
+  ENGAGEMENT:       { optimization_goal: "POST_ENGAGEMENT",     billing_event: "IMPRESSIONS" },
+};
+
+// ─── Create Ad Set in Meta ───
+async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optimization_goal, age_min, age_max, genders, interests, status }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
+
+  const goal = GOAL_MAP[optimization_goal] || GOAL_MAP.CONVERSIONS;
+
+  const genderArr = genders === "male" ? [1] : genders === "female" ? [2] : [1, 2];
+
+  const targeting = {
+    age_min: age_min || 18,
+    age_max: age_max || 65,
+    genders: genderArr,
+    geo_locations: { countries: ["BR"] },
+  };
+
+  if (interests && interests.length > 0) {
+    targeting.flexible_spec = [{ interests: interests.map(i => ({ name: i })) }];
+  }
+
+  const body = {
+    name,
+    campaign_id: meta_campaign_id,
+    daily_budget: Math.round((daily_budget || 50) * 100),
+    optimization_goal: goal.optimization_goal,
+    billing_event: goal.billing_event,
+    targeting,
+    status: status === "Ativa" ? "ACTIVE" : "PAUSED",
+  };
+
+  const res = await fetch(
+    `${API}/act_${adAccountId}/adsets?access_token=${encodeURIComponent(token)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || "Erro ao criar conjunto no Meta");
+  return data;
+}
+
+// ─── Create Ad in Meta ───
+async function createAd(userId, { meta_adset_id, name, status }) {
+  // Ads require a page_id + creative — store locally, user sets creative in Meta Manager
+  // This creates a placeholder ad record; full creative linking requires page_id
+  return { id: null, note: "Anúncio registrado localmente. Configure o criativo no Meta Ads Manager." };
+}
+
 // ─── Create campaign in Meta Ads Manager ───
 async function createCampaign(userId, { name, objective, status, budget }) {
   const token = getToken(userId);
@@ -170,4 +227,4 @@ async function updateCampaignStatus(userId, metaCampaignId, status) {
   return data;
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus };
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, createAd };

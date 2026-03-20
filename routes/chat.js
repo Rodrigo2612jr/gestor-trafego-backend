@@ -1,7 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
-const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus } = require("../services/meta-ads");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, createAd: metaCreateAd } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -134,6 +134,78 @@ async function executeToolCall(toolCall, userId) {
         metaUpdateStatus(userId, metaId, "Ativa").catch(e => console.error("[Leo] Meta activate failed:", e.message));
       }
       return JSON.stringify({ success: true, message: "Campanha reativada com sucesso!" });
+    }
+
+    case "create_adset": {
+      let metaAdsetId = null;
+      let metaAdsetError = null;
+
+      if (args.meta_campaign_id) {
+        try {
+          const result = await metaCreateAdSet(userId, args);
+          metaAdsetId = result.id;
+        } catch (err) {
+          metaAdsetError = err.message;
+          console.error("[Leo] Meta adset creation failed:", err.message);
+        }
+      }
+
+      const adset = insert("adsets", {
+        user_id: userId,
+        campaign_id: args.campaign_id,
+        name: args.name,
+        daily_budget: args.daily_budget,
+        optimization_goal: args.optimization_goal,
+        age_min: args.age_min || 18,
+        age_max: args.age_max || 65,
+        genders: args.genders || "all",
+        interests: args.interests || [],
+        placement: args.placement || "feed, stories, reels",
+        status: args.status || "Pausada",
+        external_id: metaAdsetId ? `meta_${metaAdsetId}` : null,
+      });
+
+      const msg = metaAdsetId
+        ? `Conjunto "${adset.name}" criado no Meta (ID: ${metaAdsetId})!`
+        : metaAdsetError
+          ? `Conjunto "${adset.name}" salvo no sistema. Meta: ${metaAdsetError}`
+          : `Conjunto "${adset.name}" criado!`;
+
+      return JSON.stringify({ success: true, adset_id: adset.id, meta_adset_id: metaAdsetId, name: adset.name, message: msg });
+    }
+
+    case "create_ad": {
+      let metaAdId = null;
+
+      if (args.meta_adset_id) {
+        try {
+          const result = await metaCreateAd(userId, args);
+          metaAdId = result.id;
+        } catch (err) {
+          console.error("[Leo] Meta ad creation failed:", err.message);
+        }
+      }
+
+      const destinationUrl = args.destination_url
+        ? (args.utm ? `${args.destination_url}?${args.utm}` : args.destination_url)
+        : null;
+
+      const ad = insert("ads", {
+        user_id: userId,
+        adset_id: args.adset_id,
+        name: args.name,
+        headline: args.headline,
+        primary_text: args.primary_text,
+        description: args.description || "",
+        cta: args.cta,
+        destination_url: destinationUrl,
+        creative_id: args.creative_id || null,
+        format: args.format || "feed",
+        status: "Pausado",
+        external_id: metaAdId ? `meta_${metaAdId}` : null,
+      });
+
+      return JSON.stringify({ success: true, ad_id: ad.id, name: ad.name, message: `Anúncio "${ad.name}" criado!` });
     }
 
     case "create_alert": {

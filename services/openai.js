@@ -98,6 +98,54 @@ const LEO_TOOLS = [
   {
     type: "function",
     function: {
+      name: "create_adset",
+      description: "Cria um conjunto de anúncios (Ad Set) dentro de uma campanha. SEMPRE use após create_campaign para criar os conjuntos. Pode chamar múltiplas vezes para criar vários conjuntos.",
+      parameters: {
+        type: "object",
+        properties: {
+          campaign_id: { type: "number", description: "ID interno da campanha (retornado pelo create_campaign)" },
+          meta_campaign_id: { type: "string", description: "ID da campanha no Meta (retornado pelo create_campaign como meta_campaign_id)" },
+          name: { type: "string", description: "Nome do conjunto (ex: 'Conjunto 1 - Mulheres 25-45 - Broad')" },
+          daily_budget: { type: "number", description: "Orçamento diário em reais (ex: 50)" },
+          optimization_goal: { type: "string", enum: ["CONVERSIONS", "TRAFFIC", "REACH", "LEAD_GENERATION", "ENGAGEMENT"], description: "Objetivo de otimização" },
+          age_min: { type: "number", description: "Idade mínima do público (padrão: 18)" },
+          age_max: { type: "number", description: "Idade máxima do público (padrão: 65)" },
+          genders: { type: "string", enum: ["all", "male", "female"], description: "Gênero do público" },
+          interests: { type: "array", items: { type: "string" }, description: "Lista de interesses do público (ex: ['saúde', 'bem-estar', 'suplementos'])" },
+          placement: { type: "string", description: "Posicionamentos (ex: 'feed, stories, reels')" },
+          status: { type: "string", enum: ["Ativa", "Pausada"], description: "Status inicial" },
+        },
+        required: ["campaign_id", "name", "daily_budget", "optimization_goal"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "create_ad",
+      description: "Cria um anúncio dentro de um conjunto. SEMPRE use após create_adset para criar os anúncios com copy e criativo. Pode chamar múltiplas vezes.",
+      parameters: {
+        type: "object",
+        properties: {
+          adset_id: { type: "number", description: "ID interno do conjunto (retornado pelo create_adset)" },
+          meta_adset_id: { type: "string", description: "ID do conjunto no Meta (retornado pelo create_adset)" },
+          name: { type: "string", description: "Nome do anúncio (ex: 'Anúncio 1 - feed_08 - ângulo dor')" },
+          headline: { type: "string", description: "Título principal do anúncio" },
+          primary_text: { type: "string", description: "Texto principal do anúncio" },
+          description: { type: "string", description: "Descrição/subtítulo" },
+          cta: { type: "string", enum: ["SHOP_NOW", "LEARN_MORE", "SIGN_UP", "CONTACT_US", "GET_QUOTE", "SUBSCRIBE", "DOWNLOAD", "BOOK_TRAVEL", "WATCH_MORE"], description: "Call-to-action" },
+          destination_url: { type: "string", description: "URL de destino do anúncio" },
+          creative_id: { type: "number", description: "ID do criativo da biblioteca a usar (opcional)" },
+          format: { type: "string", enum: ["feed", "story", "reels", "carrossel"], description: "Formato do anúncio" },
+          utm: { type: "string", description: "Parâmetros UTM (ex: 'utm_source=meta&utm_campaign=camp44')" },
+        },
+        required: ["adset_id", "name", "headline", "primary_text", "cta"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "generate_ad_copy",
       description: "Gera textos completos para anúncios (headlines, descrições, CTAs, hooks). Use quando pedirem copies, textos de anúncio, headlines.",
       parameters: {
@@ -136,12 +184,18 @@ PERSONALIDADE E FORMA DE RESPONDER:
 - Humor leve quando cabe, mas sério quando é sobre dinheiro/resultado
 
 VOCÊ FAZ, NÃO SUGERE:
-- Quando pedem campanha, você USA a tool create_campaign e CRIA no sistema. Depois explica a estratégia completa
-- Quando pedem criativo/imagem, você USA a tool generate_creative e GERA a imagem. Descreva o visual em detalhe no prompt
-- Quando pedem copy, você USA a tool generate_ad_copy e GERA os textos prontos
-- Pode chamar MÚLTIPLAS tools numa mesma resposta (ex: criar campanha + gerar criativo + gerar copy)
-- Quando monta uma campanha completa, SEMPRE cria: a campanha no sistema + pelo menos 1 criativo + as copies
-- A tool create_campaign JÁ PUBLICA diretamente no Meta Ads Manager via API. Quando você usa ela, a campanha VAI para o gerenciador real. Não existe "só rascunho" — ou você usa a tool e cria de verdade, ou não usa. USE SEMPRE a tool quando pedirem campanha Meta
+- Quando pedem campanha completa, você executa TUDO em sequência usando as tools, SEM parar pra perguntar ou explicar no meio:
+  1. create_campaign → cria a campanha
+  2. create_adset → cria CADA conjunto (chama quantas vezes for necessário, 1 call por conjunto)
+  3. create_ad → cria CADA anúncio dentro de cada conjunto (1 call por anúncio)
+  4. generate_ad_copy → gera copies se ainda não tiver
+  5. Só DEPOIS de criar tudo, resume o que foi feito
+
+- NUNCA cria só a campanha e para. Campanha sem conjuntos e anúncios não serve pra nada
+- Pode chamar 10, 15, 20 tools numa mesma resposta. Cria tudo de uma vez
+- A tool create_campaign JÁ PUBLICA diretamente no Meta Ads Manager via API
+- Quando pedem criativo/imagem, USA generate_creative e GERA a imagem
+- Quando pedem copy, USA generate_ad_copy e GERA os textos prontos
 
 SUA EXPERTISE PROFUNDA: NICHO DE PRODUTOS NATURAIS
 
