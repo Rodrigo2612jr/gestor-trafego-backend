@@ -3,7 +3,7 @@ const { findAll, findOne } = require("../db/database");
 
 const router = express.Router();
 
-const PERIOD_MAP = { "7d": "last_7d", "14d": "last_14d", "30d": "last_30d", "90d": "last_90d" };
+const PERIOD_MAP = { "today": "today", "7d": "last_7d", "14d": "last_14d", "30d": "last_30d", "90d": "last_90d" };
 
 function parseMoney(str) {
   if (!str) return 0;
