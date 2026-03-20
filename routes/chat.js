@@ -238,9 +238,10 @@ router.post("/", async (req, res) => {
   const alerts = findAll("alerts", r => r.user_id === req.userId);
   const creatives = findAll("creatives", r => r.user_id === req.userId);
 
-  const campaignSummary = campaigns.slice(0, 10).map(c =>
-    `• ${c.name} (${c.channel}) — Status: ${c.status} | ROAS: ${c.roas} | CPA: ${c.cpa} | CTR: ${c.ctr} | Budget: ${c.budget} | Gasto: ${c.spend} | Conv: ${c.conv}`
-  ).join("\n");
+  const campaignSummary = campaigns.slice(0, 10).map(c => {
+    const metaId = c.external_id?.startsWith("meta_") ? c.external_id.replace("meta_", "") : null;
+    return `• [ID:${c.id}${metaId ? ` | MetaID:${metaId}` : ""}] ${c.name} (${c.channel}) — Status: ${c.status} | ROAS: ${c.roas} | CPA: ${c.cpa} | CTR: ${c.ctr} | Budget: ${c.budget} | Gasto: ${c.spend} | Conv: ${c.conv}`;
+  }).join("\n");
 
   const alertsSummary = alerts.slice(0, 5).map(a =>
     `• [${a.severity}] ${a.title} — ${a.desc || a.description || ""}`
