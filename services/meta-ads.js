@@ -119,6 +119,23 @@ const GOAL_MAP = {
   ENGAGEMENT:       { optimization_goal: "POST_ENGAGEMENT",     billing_event: "IMPRESSIONS" },
 };
 
+// ─── Busca IDs reais de interesses na Meta API ───
+async function resolveInterestIds(token, interestNames) {
+  const resolved = [];
+  for (const name of interestNames) {
+    try {
+      const res = await fetch(
+        `${API}/search?type=adinterest&q=${encodeURIComponent(name)}&limit=1&access_token=${encodeURIComponent(token)}`
+      );
+      const data = await res.json();
+      if (data.data?.[0]?.id) {
+        resolved.push({ id: data.data[0].id, name: data.data[0].name });
+      }
+    } catch { /* pula interesse que não resolver */ }
+  }
+  return resolved;
+}
+
 // ─── Create Ad Set in Meta ───
 async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optimization_goal, age_min, age_max, genders, interests, status }) {
   const token = getToken(userId);
@@ -127,7 +144,6 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
 
   const goal = GOAL_MAP[optimization_goal] || GOAL_MAP.CONVERSIONS;
-
   const genderArr = genders === "male" ? [1] : genders === "female" ? [2] : [1, 2];
 
   const targeting = {
@@ -137,8 +153,12 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     geo_locations: { countries: ["BR"] },
   };
 
+  // Resolve interest names → IDs reais da Meta
   if (interests && interests.length > 0) {
-    targeting.flexible_spec = [{ interests: interests.map(i => ({ name: i })) }];
+    const resolvedInterests = await resolveInterestIds(token, interests);
+    if (resolvedInterests.length > 0) {
+      targeting.flexible_spec = [{ interests: resolvedInterests }];
+    }
   }
 
   const body = {
