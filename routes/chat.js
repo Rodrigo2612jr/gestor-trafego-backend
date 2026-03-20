@@ -161,12 +161,40 @@ router.post("/", async (req, res) => {
     return { role: m.role === "user" ? "user" : "assistant", content };
   }).filter(m => typeof m.content === "string" && m.content.trim());
 
+  // Inject visual context: include creative images so Leo can actually see them
+  const creativesWithImages = creatives
+    .filter(c => c.image_url && c.image_url.startsWith("data:"))
+    .slice(0, 8);
+
+  let messagesForAI = recentHistory;
+  if (creativesWithImages.length > 0) {
+    const visionContext = {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `[Contexto visual — criativos da biblioteca]\n${creativesWithImages.map((c, i) => `${i + 1}. ${c.name} (ID:${c.id})`).join("\n")}\nUse essas imagens para analisar formato, ângulo, estilo e distribuição nos conjuntos de anúncios.`,
+        },
+        ...creativesWithImages.map(c => ({
+          type: "image_url",
+          image_url: { url: c.image_url, detail: "low" },
+        })),
+      ],
+    };
+    // Insert vision context before the last user message
+    messagesForAI = [
+      ...recentHistory.slice(0, -1),
+      visionContext,
+      recentHistory[recentHistory.length - 1],
+    ];
+  }
+
   try {
-    let response = await chatCompletion(recentHistory, userData);
+    let response = await chatCompletion(messagesForAI, userData);
     let message = response.choices[0].message;
     const conversationMessages = [
       { role: "system", content: "" }, // placeholder, chatCompletion handles system
-      ...recentHistory,
+      ...messagesForAI,
       message,
     ];
 
