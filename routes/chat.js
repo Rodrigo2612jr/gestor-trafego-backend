@@ -1,6 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -23,6 +24,25 @@ async function executeToolCall(toolCall, userId) {
 
   switch (name) {
     case "create_campaign": {
+      let metaCampaignId = null;
+      let metaError = null;
+
+      // Try to create in Meta Ads Manager if it's a Meta campaign
+      if ((args.channel || "").toLowerCase() === "meta") {
+        try {
+          const metaResult = await metaCreateCampaign(userId, {
+            name: args.name,
+            objective: args.objective,
+            status: args.status || "Pausada",
+            budget: args.budget,
+          });
+          metaCampaignId = metaResult.id;
+        } catch (err) {
+          metaError = err.message;
+          console.error("[Leo] Meta campaign creation failed:", err.message);
+        }
+      }
+
       const campaign = insert("campaigns", {
         user_id: userId,
         name: args.name,
@@ -35,8 +55,16 @@ async function executeToolCall(toolCall, userId) {
         roas: "0.0x",
         ctr: "0.00%",
         objective: args.objective,
+        external_id: metaCampaignId ? `meta_${metaCampaignId}` : null,
       });
-      return JSON.stringify({ success: true, campaign_id: campaign.id, name: campaign.name, message: `Campanha "${campaign.name}" criada com sucesso no sistema!` });
+
+      const msg = metaCampaignId
+        ? `Campanha "${campaign.name}" criada no Meta Ads Manager (ID: ${metaCampaignId}) e salva no sistema!`
+        : metaError
+          ? `Campanha "${campaign.name}" salva no sistema. Erro ao criar no Meta: ${metaError}`
+          : `Campanha "${campaign.name}" criada no sistema!`;
+
+      return JSON.stringify({ success: true, campaign_id: campaign.id, meta_campaign_id: metaCampaignId, name: campaign.name, message: msg });
     }
 
     case "generate_creative": {
@@ -84,6 +112,12 @@ async function executeToolCall(toolCall, userId) {
         desc: args.reason,
         resolved: false,
       });
+      // Sync pause to Meta if campaign has external_id
+      const camp = findOne("campaigns", c => c.id === args.campaign_id && c.user_id === userId);
+      if (camp?.external_id?.startsWith("meta_")) {
+        const metaId = camp.external_id.replace("meta_", "");
+        metaUpdateStatus(userId, metaId, "Pausada").catch(e => console.error("[Leo] Meta pause failed:", e.message));
+      }
       return JSON.stringify({ success: true, message: `Campanha pausada. Motivo: ${args.reason}` });
     }
 
@@ -93,6 +127,12 @@ async function executeToolCall(toolCall, userId) {
         () => ({ status: "Ativa", auto_paused: false })
       );
       if (changed === 0) return JSON.stringify({ success: false, error: "Campanha não encontrada" });
+      // Sync activation to Meta if campaign has external_id
+      const camp = findOne("campaigns", c => c.id === args.campaign_id && c.user_id === userId);
+      if (camp?.external_id?.startsWith("meta_")) {
+        const metaId = camp.external_id.replace("meta_", "");
+        metaUpdateStatus(userId, metaId, "Ativa").catch(e => console.error("[Leo] Meta activate failed:", e.message));
+      }
       return JSON.stringify({ success: true, message: "Campanha reativada com sucesso!" });
     }
 

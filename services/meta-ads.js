@@ -95,4 +95,79 @@ async function fetchAudiences(userId) {
   }));
 }
 
-module.exports = { fetchCampaigns, fetchAudiences };
+// ─── Map objective string to Meta API objective ───
+function mapObjective(objective = "") {
+  const o = objective.toLowerCase();
+  if (o.includes("venda") || o.includes("convers")) return "OUTCOME_SALES";
+  if (o.includes("lead")) return "OUTCOME_LEADS";
+  if (o.includes("tráfego") || o.includes("trafego") || o.includes("traffic")) return "OUTCOME_TRAFFIC";
+  if (o.includes("reconhec") || o.includes("awareness") || o.includes("alcance")) return "OUTCOME_AWARENESS";
+  if (o.includes("engaj") || o.includes("engag")) return "OUTCOME_ENGAGEMENT";
+  if (o.includes("app")) return "OUTCOME_APP_PROMOTION";
+  return "OUTCOME_SALES"; // default
+}
+
+// ─── Create campaign in Meta Ads Manager ───
+async function createCampaign(userId, { name, objective, status, budget }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
+
+  const metaStatus = status === "Ativa" ? "ACTIVE" : "PAUSED";
+  const metaObjective = mapObjective(objective);
+
+  // Parse budget string like "R$ 100/dia" → 10000 (cents)
+  let dailyBudgetCents = null;
+  if (budget) {
+    const match = budget.replace(/\./g, "").match(/[\d,]+/);
+    if (match) {
+      const value = parseFloat(match[0].replace(",", "."));
+      if (!isNaN(value)) dailyBudgetCents = Math.round(value * 100);
+    }
+  }
+
+  const body = {
+    name,
+    objective: metaObjective,
+    status: metaStatus,
+    special_ad_categories: [],
+  };
+  if (dailyBudgetCents) {
+    body.daily_budget = dailyBudgetCents;
+  }
+
+  const res = await fetch(
+    `${API}/act_${adAccountId}/campaigns?access_token=${encodeURIComponent(token)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || "Erro ao criar campanha no Meta");
+  return data; // { id: "campaign_id" }
+}
+
+// ─── Pause/activate campaign in Meta ───
+async function updateCampaignStatus(userId, metaCampaignId, status) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  const metaStatus = status === "Ativa" ? "ACTIVE" : "PAUSED";
+  const res = await fetch(
+    `${API}/${metaCampaignId}?access_token=${encodeURIComponent(token)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: metaStatus }),
+    }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data;
+}
+
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus };
