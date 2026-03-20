@@ -13,15 +13,17 @@ function parseMoney(str) {
 async function fetchMetaInsights(token, adAccountId, datePreset) {
   const API = "https://graph.facebook.com/v21.0";
   try {
-    // Account-level insights with daily breakdown
-    const [summaryRes, dailyRes] = await Promise.all([
+    const [summaryRes, dailyRes, campRes] = await Promise.all([
       fetch(`${API}/act_${adAccountId}/insights?fields=spend,impressions,clicks,ctr,actions,action_values,cost_per_action_type&date_preset=${datePreset}&access_token=${encodeURIComponent(token)}`),
       fetch(`${API}/act_${adAccountId}/insights?fields=spend,impressions,clicks,actions,action_values&date_preset=${datePreset}&time_increment=1&access_token=${encodeURIComponent(token)}`),
+      fetch(`${API}/act_${adAccountId}/campaigns?fields=id,status&limit=200&access_token=${encodeURIComponent(token)}`),
     ]);
     const summary = summaryRes.ok ? (await summaryRes.json()).data?.[0] || {} : {};
     const daily = dailyRes.ok ? (await dailyRes.json()).data || [] : [];
-    return { summary, daily };
-  } catch { return { summary: {}, daily: [] }; }
+    const campData = campRes.ok ? (await campRes.json()).data || [] : [];
+    const activeCampaigns = campData.filter(c => c.status === "ACTIVE").length;
+    return { summary, daily, activeCampaigns };
+  } catch { return { summary: {}, daily: [], activeCampaigns: 0 }; }
 }
 
 router.get("/", async (req, res) => {
@@ -56,12 +58,14 @@ router.get("/", async (req, res) => {
   // Fetch live Meta insights for selected period
   let metaSummary = {};
   let metaDaily = [];
+  let metaActiveCampaigns = null;
   if (hasMeta) {
     const tok = findOne("oauth_tokens", t => t.user_id === req.userId && t.platform === "meta");
     if (tok?.access_token && tok?.ad_account_id) {
       const result = await fetchMetaInsights(tok.access_token, tok.ad_account_id, datePreset);
       metaSummary = result.summary;
       metaDaily = result.daily;
+      metaActiveCampaigns = result.activeCampaigns;
     }
   }
 
@@ -85,7 +89,7 @@ router.get("/", async (req, res) => {
   const totalConvValue = metaConvValue;
   const roas = totalSpend > 0 ? totalConvValue / totalSpend : 0;
   const cpa = totalConv > 0 ? totalSpend / totalConv : 0;
-  const activeCampaigns = campaigns.filter(c => c.status === "Ativa" || c.status === "Escalando").length;
+  const activeCampaigns = metaActiveCampaigns !== null ? metaActiveCampaigns : campaigns.filter(c => c.status === "Ativa" || c.status === "Escalando").length;
 
   // Chart data from daily Meta insights
   const chartData = metaDaily.map(d => ({
