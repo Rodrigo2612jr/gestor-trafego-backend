@@ -2,6 +2,9 @@
 const { getToken } = require("./meta-auth");
 const { findOne } = require("../db/database");
 
+const META_PAGE_ID = process.env.META_PAGE_ID || "501602063233583";
+const META_INSTAGRAM_ACTOR_ID = process.env.META_INSTAGRAM_ACTOR_ID || "17841401750547973";
+
 const API = "https://graph.facebook.com/v21.0";
 
 function getAdAccountId(userId) {
@@ -158,10 +161,55 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 }
 
 // ─── Create Ad in Meta ───
-async function createAd(userId, { meta_adset_id, name, status }) {
-  // Ads require a page_id + creative — store locally, user sets creative in Meta Manager
-  // This creates a placeholder ad record; full creative linking requires page_id
-  return { id: null, note: "Anúncio registrado localmente. Configure o criativo no Meta Ads Manager." };
+async function createAd(userId, { meta_adset_id, name, headline, primary_text, cta, destination_url, creative_id, format }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
+
+  // Look up image from internal creative library
+  let imageUrl = null;
+  if (creative_id) {
+    const creative = findOne("creatives", c => c.id === Number(creative_id));
+    if (creative?.image_url && creative.image_url.startsWith("https://")) {
+      imageUrl = creative.image_url;
+    }
+  }
+
+  const ctaType = cta || "LEARN_MORE";
+  const link = destination_url || "https://emporiopascoto.com.br";
+
+  const linkData = {
+    link,
+    message: primary_text || "",
+    name: headline || name,
+    call_to_action: { type: ctaType, value: { link } },
+  };
+  if (imageUrl) linkData.picture = imageUrl;
+
+  const objectStorySpec = {
+    page_id: META_PAGE_ID,
+    link_data: linkData,
+  };
+  if (META_INSTAGRAM_ACTOR_ID) objectStorySpec.instagram_actor_id = META_INSTAGRAM_ACTOR_ID;
+
+  // 1. Criar criativo no Meta
+  const creativeRes = await fetch(
+    `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `Creative: ${name}`, object_story_spec: objectStorySpec }) }
+  );
+  const creativeData = await creativeRes.json();
+  if (creativeData.error) throw new Error(creativeData.error.message || "Erro ao criar criativo no Meta");
+
+  // 2. Criar anúncio usando o criativo
+  const adRes = await fetch(
+    `${API}/act_${adAccountId}/ads?access_token=${encodeURIComponent(token)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, adset_id: meta_adset_id, creative: { creative_id: creativeData.id }, status: "PAUSED" }) }
+  );
+  const adData = await adRes.json();
+  if (adData.error) throw new Error(adData.error.message || "Erro ao criar anúncio no Meta");
+
+  return { id: adData.id, meta_creative_id: creativeData.id };
 }
 
 // ─── Create campaign in Meta Ads Manager ───
