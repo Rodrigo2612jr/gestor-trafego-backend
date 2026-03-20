@@ -124,6 +124,7 @@ router.post("/", async (req, res) => {
   const connections = findAll("connections", r => r.user_id === req.userId && r.connected === true);
   const campaigns = findAll("campaigns", r => r.user_id === req.userId);
   const alerts = findAll("alerts", r => r.user_id === req.userId);
+  const creatives = findAll("creatives", r => r.user_id === req.userId);
 
   const campaignSummary = campaigns.slice(0, 10).map(c =>
     `• ${c.name} (${c.channel}) — Status: ${c.status} | ROAS: ${c.roas} | CPA: ${c.cpa} | CTR: ${c.ctr} | Budget: ${c.budget} | Gasto: ${c.spend} | Conv: ${c.conv}`
@@ -131,6 +132,10 @@ router.post("/", async (req, res) => {
 
   const alertsSummary = alerts.slice(0, 5).map(a =>
     `• [${a.severity}] ${a.title} — ${a.desc || a.description || ""}`
+  ).join("\n");
+
+  const creativesSummary = creatives.slice(0, 15).map(c =>
+    `• [ID:${c.id}] "${c.name}" | Formato: ${c.format || c.type || "Imagem"} | Canal: ${c.channel || "-"} | Status: ${c.status || "-"}${c.category ? ` | Categoria: ${c.category}` : ""}${c.ai_generated ? " | Gerado por IA" : ""}`
   ).join("\n");
 
   const userData = {
@@ -141,6 +146,8 @@ router.post("/", async (req, res) => {
     metaConnected: connections.some(c => c.platform === "meta"),
     campaignSummary,
     alertsSummary,
+    creativesCount: creatives.length,
+    creativesSummary,
   };
 
   // Build conversation history (last 20 messages for context)
