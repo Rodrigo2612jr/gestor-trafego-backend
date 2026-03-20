@@ -202,9 +202,12 @@ router.post("/", async (req, res) => {
   }).filter(m => typeof m.content === "string" && m.content.trim());
 
   // Inject visual context: include creative images so Leo can actually see them
+  // Accept both base64 (data:) and external URLs (https://) — skip local /api/ paths
   const creativesWithImages = creatives
-    .filter(c => c.image_url && c.image_url.startsWith("data:"))
+    .filter(c => c.image_url && (c.image_url.startsWith("data:") || c.image_url.startsWith("https://")))
     .slice(0, 8);
+
+  console.log(`[Leo Vision] ${creativesWithImages.length} imagens enviadas de ${creatives.length} criativos totais`);
 
   let messagesForAI = recentHistory;
   if (creativesWithImages.length > 0) {
@@ -213,11 +216,11 @@ router.post("/", async (req, res) => {
       content: [
         {
           type: "text",
-          text: `[Contexto visual — criativos da biblioteca]\n${creativesWithImages.map((c, i) => `${i + 1}. ${c.name} (ID:${c.id})`).join("\n")}\nUse essas imagens para analisar formato, ângulo, estilo e distribuição nos conjuntos de anúncios.`,
+          text: `[Contexto visual — criativos da biblioteca do usuário. ANALISE CADA IMAGEM REAL antes de opinar sobre qualidade, ângulo ou desempenho. NÃO INVENTE análise se não conseguir ver claramente.]\n${creativesWithImages.map((c, i) => `${i + 1}. ${c.name} (ID:${c.id})`).join("\n")}`,
         },
         ...creativesWithImages.map(c => ({
           type: "image_url",
-          image_url: { url: c.image_url, detail: "low" },
+          image_url: { url: c.image_url, detail: "high" },
         })),
       ],
     };
