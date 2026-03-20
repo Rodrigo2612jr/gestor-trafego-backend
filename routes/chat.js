@@ -7,7 +7,13 @@ const router = express.Router();
 router.get("/", (req, res) => {
   const messages = findAll("chat_messages", r => r.user_id === req.userId);
   messages.sort((a, b) => (a.id - b.id));
-  res.json(messages.slice(-100).map(m => ({ id: m.id, role: m.role, text: m.text, images: m.images, created_at: m.created_at })));
+  res.json(messages.slice(-100).map(m => {
+    let text;
+    if (typeof m.text === "string") text = m.text;
+    else if (typeof m.text?.choices?.[0]?.message?.content === "string") text = m.text.choices[0].message.content;
+    else text = JSON.stringify(m.text) || "";
+    return { id: m.id, role: m.role, text, images: m.images, created_at: m.created_at };
+  }));
 });
 
 // ─── Execute tool calls from Leo ───
@@ -140,10 +146,13 @@ router.post("/", async (req, res) => {
   // Build conversation history (last 20 messages for context)
   const history = findAll("chat_messages", r => r.user_id === req.userId);
   history.sort((a, b) => a.id - b.id);
-  const recentHistory = history.slice(-20).map(m => ({
-    role: m.role === "user" ? "user" : "assistant",
-    content: m.text,
-  }));
+  const recentHistory = history.slice(-20).map(m => {
+    let content;
+    if (typeof m.text === "string") content = m.text;
+    else if (typeof m.text?.choices?.[0]?.message?.content === "string") content = m.text.choices[0].message.content;
+    else content = JSON.stringify(m.text) || null;
+    return { role: m.role === "user" ? "user" : "assistant", content };
+  }).filter(m => typeof m.content === "string" && m.content.trim());
 
   try {
     let response = await chatCompletion(recentHistory, userData);

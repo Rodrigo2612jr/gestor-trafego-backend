@@ -107,12 +107,16 @@ router.post("/chat", upload.single("audio"), async (req, res) => {
 
     const history = findAll("chat_messages", r => r.user_id === req.userId);
     history.sort((a, b) => a.id - b.id);
-    const recentHistory = history.slice(-20).map(m => ({
-      role: m.role === "user" ? "user" : "assistant",
-      content: m.text,
-    }));
+    const recentHistory = history.slice(-20).map(m => {
+      let content;
+      if (typeof m.text === "string") content = m.text;
+      else if (typeof m.text?.choices?.[0]?.message?.content === "string") content = m.text.choices[0].message.content;
+      else content = JSON.stringify(m.text) || null;
+      return { role: m.role === "user" ? "user" : "assistant", content };
+    }).filter(m => typeof m.content === "string" && m.content.trim());
 
-    const aiText = await chatCompletion(recentHistory, userData);
+    const aiResponse = await chatCompletion(recentHistory, userData);
+    const aiText = aiResponse.choices[0].message.content || "Entendido!";
     insert("chat_messages", { user_id: req.userId, role: "assistant", text: aiText });
 
     // 4. Convert AI response to speech
