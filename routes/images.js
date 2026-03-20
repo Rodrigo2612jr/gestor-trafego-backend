@@ -85,20 +85,32 @@ router.get("/creatives", (req, res) => {
   res.json(creatives);
 });
 
-// ─── Upload user images ───
+// ─── Upload user images (stored as base64 to survive serverless ephemeral /tmp) ───
 router.post("/upload", upload.array("images", 10), (req, res) => {
   if (!req.files || req.files.length === 0) return res.status(400).json({ error: "Nenhuma imagem enviada" });
 
   const creatives = req.files.map(file => {
     const name = req.body.name || file.originalname.replace(/\.[^.]+$/, "");
+    let imageUrl;
+    try {
+      const fileBuffer = fs.readFileSync(file.path);
+      const base64 = fileBuffer.toString("base64");
+      imageUrl = `data:${file.mimetype};base64,${base64}`;
+    } catch {
+      imageUrl = null;
+    }
+    // Clean up temp file after reading
+    try { fs.unlinkSync(file.path); } catch {}
+
     return insert("creatives", {
       user_id: req.userId,
       name,
       type: "image",
       channel: req.body.channel || "meta",
       status: "ready",
-      image_url: `/api/images/file/${file.filename}`,
+      image_url: imageUrl,
       ai_generated: false,
+      category: req.body.category || null,
       created_at: new Date().toISOString(),
     });
   });
@@ -106,7 +118,7 @@ router.post("/upload", upload.array("images", 10), (req, res) => {
   res.status(201).json(creatives.length === 1 ? { creative: creatives[0] } : { creatives });
 });
 
-// ─── Serve uploaded image files ───
+// ─── Serve uploaded image files (fallback for old records) ───
 router.get("/file/:filename", (req, res) => {
   const filename = path.basename(req.params.filename); // prevent path traversal
   const filePath = path.join(uploadDir, filename);
