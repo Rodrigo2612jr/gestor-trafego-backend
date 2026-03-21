@@ -316,7 +316,7 @@ router.post("/", async (req, res) => {
 
     let collectedImages = [];
     let iterations = 0;
-    const MAX_ITERATIONS = 5;
+    const MAX_ITERATIONS = 20;
 
     // Process tool calls in a loop
     while (message.tool_calls && message.tool_calls.length > 0 && iterations < MAX_ITERATIONS) {
@@ -332,32 +332,27 @@ router.post("/", async (req, res) => {
           content: result,
         });
 
-        // If an image was generated, collect the URL
         if (toolCall.function.name === "generate_creative") {
           try {
             const parsed = JSON.parse(result);
             if (parsed.success) {
-              // Fetch the actual image URL from the creative
               const creatives = findAll("creatives", c => c.user_id === req.userId && c.ai_generated === true);
               const latest = creatives.sort((a, b) => b.id - a.id)[0];
-              if (latest && latest.image_url) {
-                collectedImages.push(latest.image_url);
-              }
+              if (latest && latest.image_url) collectedImages.push(latest.image_url);
             }
           } catch {}
         }
       }
 
-      // Send tool results back to get Leo's final response
+      // Send tool results back — PASSANDO tools para Leo poder continuar chamando
       const OpenAI = require("openai");
+      const { LEO_TOOLS } = require("../services/openai");
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      
+
       const followUp = await openai.chat.completions.create({
-        model: "gpt-5.4",
-        messages: [
-          ...conversationMessages,
-          ...toolResults,
-        ],
+        model: "gpt-4o",
+        messages: [...conversationMessages, ...toolResults],
+        tools: LEO_TOOLS,
         max_completion_tokens: 4000,
         temperature: 0.7,
       });
