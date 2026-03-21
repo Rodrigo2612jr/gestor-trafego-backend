@@ -143,18 +143,32 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const adAccountId = getAdAccountId(userId);
   if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
 
-  // Verifica se campanha tem CBO (orçamento a nível de campanha)
-  // Se tiver, adset NÃO pode ter daily_budget — esse é o "Invalid parameter" mais comum
+  // Busca campanha na Meta para pegar objetivo real e verificar CBO
   let campaignHasBudget = false;
+  let campaignObjective = null;
   try {
     const campRes = await fetch(
-      `${API}/${meta_campaign_id}?fields=daily_budget,lifetime_budget,budget_remaining&access_token=${encodeURIComponent(token)}`
+      `${API}/${meta_campaign_id}?fields=daily_budget,lifetime_budget,objective&access_token=${encodeURIComponent(token)}`
     );
     const campData = await campRes.json();
     campaignHasBudget = !!(campData.daily_budget || campData.lifetime_budget);
+    campaignObjective = campData.objective || null;
+    console.log("[Meta AdSet] Campanha objetivo:", campaignObjective, "| CBO:", campaignHasBudget);
   } catch { /* assume sem CBO */ }
 
-  const goal = GOAL_MAP[optimization_goal] || GOAL_MAP.CONVERSIONS;
+  // Mapeia objetivo real da campanha → optimization_goal correto
+  const OBJECTIVE_TO_GOAL = {
+    OUTCOME_LEADS:      { optimization_goal: "LEAD_GENERATION",      billing_event: "IMPRESSIONS" },
+    OUTCOME_SALES:      { optimization_goal: "OFFSITE_CONVERSIONS",  billing_event: "IMPRESSIONS" },
+    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "LINK_CLICKS" },
+    OUTCOME_AWARENESS:  { optimization_goal: "REACH",                billing_event: "IMPRESSIONS" },
+    OUTCOME_ENGAGEMENT: { optimization_goal: "POST_ENGAGEMENT",      billing_event: "IMPRESSIONS" },
+    OUTCOME_APP_PROMOTION: { optimization_goal: "APP_INSTALLS",      billing_event: "IMPRESSIONS" },
+  };
+
+  const goal = (campaignObjective && OBJECTIVE_TO_GOAL[campaignObjective])
+    ? OBJECTIVE_TO_GOAL[campaignObjective]
+    : (GOAL_MAP[optimization_goal] || GOAL_MAP.CONVERSIONS);
   const genderArr = genders === "male" ? [1] : genders === "female" ? [2] : [1, 2];
 
   const targeting = {
@@ -196,7 +210,8 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 
   if (data.error) {
     console.error("[Meta AdSet] Erro completo:", JSON.stringify(data.error, null, 2));
-    throw new Error(`Meta AdSet erro: ${data.error.message} (code: ${data.error.code}, subcode: ${data.error.error_subcode})`);
+    const blame = data.error.blame_field_specs?.map(b => b.join(".")).join(", ") || "campo desconhecido";
+    throw new Error(`Meta AdSet erro: ${data.error.message} (code: ${data.error.code}, subcode: ${data.error.error_subcode}, campo: ${blame})`);
   }
 
   return data;
