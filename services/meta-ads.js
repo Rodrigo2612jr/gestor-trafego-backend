@@ -143,6 +143,17 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const adAccountId = getAdAccountId(userId);
   if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
 
+  // Verifica se campanha tem CBO (orçamento a nível de campanha)
+  // Se tiver, adset NÃO pode ter daily_budget — esse é o "Invalid parameter" mais comum
+  let campaignHasBudget = false;
+  try {
+    const campRes = await fetch(
+      `${API}/${meta_campaign_id}?fields=daily_budget,lifetime_budget,budget_remaining&access_token=${encodeURIComponent(token)}`
+    );
+    const campData = await campRes.json();
+    campaignHasBudget = !!(campData.daily_budget || campData.lifetime_budget);
+  } catch { /* assume sem CBO */ }
+
   const goal = GOAL_MAP[optimization_goal] || GOAL_MAP.CONVERSIONS;
   const genderArr = genders === "male" ? [1] : genders === "female" ? [2] : [1, 2];
 
@@ -164,19 +175,30 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const body = {
     name,
     campaign_id: meta_campaign_id,
-    daily_budget: Math.round((daily_budget || 50) * 100),
     optimization_goal: goal.optimization_goal,
     billing_event: goal.billing_event,
     targeting,
     status: status === "Ativa" ? "ACTIVE" : "PAUSED",
   };
 
+  // Só manda daily_budget no adset se a campanha NÃO tiver CBO
+  if (!campaignHasBudget) {
+    body.daily_budget = Math.round((daily_budget || 50) * 100);
+  }
+
+  console.log("[Meta AdSet] Payload:", JSON.stringify(body, null, 2));
+
   const res = await fetch(
     `${API}/act_${adAccountId}/adsets?access_token=${encodeURIComponent(token)}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
   );
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message || "Erro ao criar conjunto no Meta");
+
+  if (data.error) {
+    console.error("[Meta AdSet] Erro completo:", JSON.stringify(data.error, null, 2));
+    throw new Error(`Meta AdSet erro: ${data.error.message} (code: ${data.error.code}, subcode: ${data.error.error_subcode})`);
+  }
+
   return data;
 }
 
