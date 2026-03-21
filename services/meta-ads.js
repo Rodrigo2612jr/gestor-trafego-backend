@@ -176,6 +176,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     age_max: age_max || 65,
     genders: genderArr,
     geo_locations: { countries: ["BR"] },
+    targeting_automation: { advantage_audience: 0 },
   };
 
   // Resolve interest names → IDs reais da Meta
@@ -299,6 +300,7 @@ async function createCampaign(userId, { name, objective, status, budget }) {
     objective: metaObjective,
     status: metaStatus,
     special_ad_categories: [],
+    bid_strategy: "LOWEST_COST_WITHOUT_CAP",
   };
   if (dailyBudgetCents) {
     body.daily_budget = dailyBudgetCents;
