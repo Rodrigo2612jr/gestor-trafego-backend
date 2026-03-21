@@ -329,7 +329,7 @@ REGRAS ABSOLUTAS:
 - Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois`;
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4",
     messages: [
       { role: "system", content: systemPrompt },
       ...messages,
@@ -382,7 +382,7 @@ async function generateImage(prompt, size = "1024x1024") {
 async function generateAdCopy(params) {
   const openai = getClient();
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.4",
     messages: [
       {
         role: "system",

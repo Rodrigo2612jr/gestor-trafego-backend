@@ -350,7 +350,7 @@ router.post("/", async (req, res) => {
       const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
       const followUp = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5.4",
         messages: [...conversationMessages, ...toolResults],
         tools: LEO_TOOLS,
         max_completion_tokens: 4000,
