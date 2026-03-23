@@ -2,13 +2,27 @@
 const { getToken } = require("./meta-auth");
 const { findOne } = require("../db/database");
 
-const META_PAGE_ID = process.env.META_PAGE_ID || "501602063233583";
-
 const API = "https://graph.facebook.com/v21.0";
 
 function getAdAccountId(userId) {
   const tok = findOne("oauth_tokens", t => t.user_id === userId && t.platform === "meta");
   return tok?.ad_account_id || process.env.META_AD_ACCOUNT_ID || null;
+}
+
+// Busca o Page ID real da conta do usuário na Meta
+async function getPageId(token) {
+  if (process.env.META_PAGE_ID) return process.env.META_PAGE_ID;
+  try {
+    const res = await fetch(`${API}/me/accounts?fields=id,name&limit=5&access_token=${encodeURIComponent(token)}`);
+    const data = await res.json();
+    if (data.data?.[0]?.id) {
+      console.log("[Meta Ad] Usando page_id auto-detectado:", data.data[0].id, data.data[0].name);
+      return data.data[0].id;
+    }
+  } catch (e) {
+    console.error("[Meta Ad] Erro ao buscar page_id:", e.message);
+  }
+  return null;
 }
 
 async function fetchCampaigns(userId) {
@@ -271,39 +285,48 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 }
 
 // ─── Create Ad in Meta ───
-async function createAd(userId, { meta_adset_id, name, headline, primary_text, cta, destination_url, creative_id, format }) {
+async function createAd(userId, { meta_adset_id, name, headline, primary_text, cta, destination_url, creative_id }) {
   const token = getToken(userId);
   if (!token) throw new Error("Meta não está conectado");
   const adAccountId = getAdAccountId(userId);
   if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
 
-  // Look up image from internal creative library
+  // Busca page_id real da conta do usuário
+  const pageId = await getPageId(token);
+  if (!pageId) throw new Error("Nenhuma página Facebook encontrada na conta. Configure META_PAGE_ID.");
+
+  // Busca imagem do criativo na biblioteca interna
   let imageUrl = null;
   let imageHash = null;
   if (creative_id) {
     const creative = findOne("creatives", c => c.id === Number(creative_id));
-    if (creative?.image_url) {
-      if (creative.image_url.startsWith("https://")) {
+    if (creative) {
+      if (creative.image_url?.startsWith("https://")) {
         imageUrl = creative.image_url;
-      } else if (creative.image_url.startsWith("data:") || creative.image_b64) {
-        // Upload base64 para o Meta para obter hash
-        try {
-          const b64Data = creative.image_url.startsWith("data:")
-            ? creative.image_url
-            : `data:image/jpeg;base64,${creative.image_b64}`;
-          const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
-          if (uploaded?.hash) imageHash = uploaded.hash;
-          if (uploaded?.url) imageUrl = uploaded.url;
-          console.log("[Meta Ad] Imagem base64 enviada ao Meta, hash:", imageHash);
-        } catch (e) {
-          console.error("[Meta Ad] Erro ao fazer upload de imagem:", e.message);
+      } else {
+        // Monta base64: prefere image_url se for data:, senão usa image_b64
+        const b64Data = creative.image_url?.startsWith("data:")
+          ? creative.image_url
+          : creative.image_b64
+            ? `data:image/jpeg;base64,${creative.image_b64}`
+            : null;
+        if (b64Data) {
+          try {
+            const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
+            if (uploaded?.hash) imageHash = uploaded.hash;
+            if (uploaded?.url) imageUrl = uploaded.url;
+            console.log("[Meta Ad] Imagem enviada ao Meta, hash:", imageHash);
+          } catch (e) {
+            console.error("[Meta Ad] Erro ao fazer upload de imagem:", e.message);
+          }
         }
       }
     }
   }
 
   const ctaType = cta || "LEARN_MORE";
-  const link = destination_url || "https://emporiopascoto.com.br";
+  const link = destination_url;
+  if (!link) throw new Error("destination_url é obrigatório para criar anúncio no Meta");
 
   const linkData = {
     link,
@@ -315,13 +338,13 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   else if (imageUrl) linkData.picture = imageUrl;
 
   const objectStorySpec = {
-    page_id: META_PAGE_ID,
+    page_id: pageId,
     link_data: linkData,
   };
 
   // 1. Criar criativo no Meta
   const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
-  console.log("[Meta Ad] Criativo payload:", JSON.stringify(creativePayload, null, 2));
+  console.log("[Meta Ad] page_id:", pageId, "| image_hash:", imageHash, "| picture:", imageUrl);
   const creativeRes = await fetch(
     `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(creativePayload) }
@@ -330,7 +353,8 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   if (creativeData.error) {
     console.error("[Meta Ad] Erro criativo:", JSON.stringify(creativeData.error, null, 2));
     const blame = creativeData.error.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
-    throw new Error(`Meta criativo erro: ${creativeData.error.message}${blame ? ` (campo: ${blame})` : ""}`);
+    const code = `code ${creativeData.error.code}${creativeData.error.error_subcode ? `/${creativeData.error.error_subcode}` : ""}`;
+    throw new Error(`Meta criativo erro (${code}): ${creativeData.error.message}${blame ? ` — campo: ${blame}` : ""}`);
   }
 
   // 2. Criar anúncio usando o criativo
@@ -341,7 +365,7 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   const adData = await adRes.json();
   if (adData.error) {
     console.error("[Meta Ad] Erro anúncio:", JSON.stringify(adData.error, null, 2));
-    throw new Error(`Meta anúncio erro: ${adData.error.message}`);
+    throw new Error(`Meta anúncio erro (code ${adData.error.code}): ${adData.error.message}`);
   }
 
   return { id: adData.id, meta_creative_id: creativeData.id };
