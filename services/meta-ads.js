@@ -3,7 +3,6 @@ const { getToken } = require("./meta-auth");
 const { findOne } = require("../db/database");
 
 const META_PAGE_ID = process.env.META_PAGE_ID || "501602063233583";
-const META_INSTAGRAM_ACTOR_ID = process.env.META_INSTAGRAM_ACTOR_ID || null;
 
 const API = "https://graph.facebook.com/v21.0";
 
@@ -319,7 +318,6 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
     page_id: META_PAGE_ID,
     link_data: linkData,
   };
-  if (META_INSTAGRAM_ACTOR_ID) objectStorySpec.instagram_actor_id = META_INSTAGRAM_ACTOR_ID;
 
   // 1. Criar criativo no Meta
   const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
