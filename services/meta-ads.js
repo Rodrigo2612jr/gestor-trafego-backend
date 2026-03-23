@@ -299,26 +299,40 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   const pageId = await getPageId(token);
   if (!pageId) throw new Error("Nenhuma página Facebook encontrada na conta. Configure META_PAGE_ID.");
 
-  // Busca imagem do criativo na biblioteca interna
-  let imageUrl = null;
+  // Busca imagem do criativo e faz upload para Meta (sempre via hash, nunca URL externa)
   let imageHash = null;
   if (creative_id) {
     const creative = findOne("creatives", c => c.id === Number(creative_id));
     if (creative) {
-      if (creative.image_url?.startsWith("https://")) {
-        imageUrl = creative.image_url;
-      } else {
-        // Monta base64: prefere image_url se for data:, senão usa image_b64
-        const b64Data = creative.image_url?.startsWith("data:")
-          ? creative.image_url
-          : creative.image_b64
-            ? `data:image/jpeg;base64,${creative.image_b64}`
-            : null;
-        if (b64Data) {
-          const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
-          if (uploaded?.hash) imageHash = uploaded.hash;
-          if (uploaded?.url) imageUrl = uploaded.url;
+      let b64Data = null;
+
+      if (creative.image_url?.startsWith("data:")) {
+        // Já é data URI — usa direto
+        b64Data = creative.image_url;
+      } else if (creative.image_b64) {
+        // Base64 puro salvo no banco
+        b64Data = `data:image/png;base64,${creative.image_b64}`;
+      } else if (creative.image_url?.startsWith("https://")) {
+        // URL externa (pode estar expirada) — tenta baixar primeiro
+        console.log("[Meta Ad] Baixando imagem da URL para upload ao Meta...");
+        try {
+          const imgRes = await fetch(creative.image_url);
+          if (imgRes.ok) {
+            const buffer = await imgRes.arrayBuffer();
+            const b64 = Buffer.from(buffer).toString("base64");
+            const ct = imgRes.headers.get("content-type") || "image/jpeg";
+            b64Data = `data:${ct};base64,${b64}`;
+          } else {
+            throw new Error(`URL da imagem retornou ${imgRes.status} — criativo pode precisar ser regerado`);
+          }
+        } catch (e) {
+          throw new Error(`Imagem do criativo ${creative_id} inacessível: ${e.message}`);
         }
+      }
+
+      if (b64Data) {
+        const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
+        imageHash = uploaded.hash;
       }
     }
   }
@@ -333,9 +347,8 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
     name: headline || name,
     call_to_action: { type: ctaType, value: { link } },
   };
-  if (imageHash) linkData.image_hash = imageHash;
-  else if (imageUrl) linkData.picture = imageUrl;
-  else throw new Error("Nenhuma imagem disponível para o criativo. Forneça um creative_id com imagem válida.");
+  if (!imageHash) throw new Error("Nenhuma imagem disponível para o criativo. Forneça um creative_id com imagem válida.");
+  linkData.image_hash = imageHash;
 
   const objectStorySpec = {
     page_id: pageId,

@@ -374,6 +374,7 @@ async function generateImage(prompt, size = "1024x1024") {
     prompt: `Crie uma imagem de anúncio profissional para produto natural/suplemento para mídia paga (Meta Ads/Google Ads): ${prompt}. Estilo moderno, clean, premium, com paleta de cores naturais (verdes, beges, brancos, dourados). Sem texto na imagem a menos que especificado. Alta qualidade, adequado para anúncios digitais de saúde e bem-estar.`,
     n: 1,
     size,
+    output_format: "jpeg",
   });
   return response.data[0];
 }
