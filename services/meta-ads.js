@@ -136,8 +136,45 @@ async function resolveInterestIds(token, interestNames) {
   return resolved;
 }
 
+// ─── Resolve nomes de cidades/estados para chaves geo da Meta ───
+async function resolveGeoLocations(token, locationNames) {
+  const cities = [];
+  const regions = [];
+  for (const name of locationNames) {
+    try {
+      const res = await fetch(
+        `${API}/search?type=adgeolocation&q=${encodeURIComponent(name)}&location_types=%5B%22city%22%2C%22region%22%5D&limit=3&access_token=${encodeURIComponent(token)}`
+      );
+      const data = await res.json();
+      if (data.data?.[0]) {
+        const loc = data.data[0];
+        if (loc.type === "city") cities.push({ key: loc.key });
+        else if (loc.type === "region") regions.push({ key: loc.key });
+      }
+    } catch { /* pula localização que não resolver */ }
+  }
+  return { cities, regions };
+}
+
+// ─── Faz upload de imagem base64 para a Meta e retorna hash/url ───
+async function uploadImageToMeta(token, adAccountId, base64Data) {
+  const base64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
+  const res = await fetch(
+    `${API}/act_${adAccountId}/adimages?access_token=${encodeURIComponent(token)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bytes: base64 }),
+    }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const images = data.images || {};
+  return Object.values(images)[0] || null; // { hash, url, width, height }
+}
+
 // ─── Create Ad Set in Meta ───
-async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optimization_goal, age_min, age_max, genders, interests, status }) {
+async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optimization_goal, age_min, age_max, genders, interests, locations, status }) {
   const token = getToken(userId);
   if (!token) throw new Error("Meta não está conectado");
   const adAccountId = getAdAccountId(userId);
@@ -171,11 +208,22 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     : (GOAL_MAP[optimization_goal] || GOAL_MAP.CONVERSIONS);
   const genderArr = genders === "male" ? [1] : genders === "female" ? [2] : [1, 2];
 
+  // Resolve localizações geográficas
+  let geoLocations = { countries: ["BR"] };
+  if (locations && locations.length > 0) {
+    const { cities, regions } = await resolveGeoLocations(token, locations);
+    if (cities.length > 0 || regions.length > 0) {
+      geoLocations = {};
+      if (cities.length > 0) geoLocations.cities = cities;
+      if (regions.length > 0) geoLocations.regions = regions;
+    }
+  }
+
   const targeting = {
     age_min: age_min || 18,
     age_max: age_max || 65,
     genders: genderArr,
-    geo_locations: { countries: ["BR"] },
+    geo_locations: geoLocations,
     targeting_automation: { advantage_audience: 0 },
   };
 
@@ -232,10 +280,26 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
 
   // Look up image from internal creative library
   let imageUrl = null;
+  let imageHash = null;
   if (creative_id) {
     const creative = findOne("creatives", c => c.id === Number(creative_id));
-    if (creative?.image_url && creative.image_url.startsWith("https://")) {
-      imageUrl = creative.image_url;
+    if (creative?.image_url) {
+      if (creative.image_url.startsWith("https://")) {
+        imageUrl = creative.image_url;
+      } else if (creative.image_url.startsWith("data:") || creative.image_b64) {
+        // Upload base64 para o Meta para obter hash
+        try {
+          const b64Data = creative.image_url.startsWith("data:")
+            ? creative.image_url
+            : `data:image/jpeg;base64,${creative.image_b64}`;
+          const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
+          if (uploaded?.hash) imageHash = uploaded.hash;
+          if (uploaded?.url) imageUrl = uploaded.url;
+          console.log("[Meta Ad] Imagem base64 enviada ao Meta, hash:", imageHash);
+        } catch (e) {
+          console.error("[Meta Ad] Erro ao fazer upload de imagem:", e.message);
+        }
+      }
     }
   }
 
@@ -248,7 +312,8 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
     name: headline || name,
     call_to_action: { type: ctaType, value: { link } },
   };
-  if (imageUrl) linkData.picture = imageUrl;
+  if (imageHash) linkData.image_hash = imageHash;
+  else if (imageUrl) linkData.picture = imageUrl;
 
   const objectStorySpec = {
     page_id: META_PAGE_ID,

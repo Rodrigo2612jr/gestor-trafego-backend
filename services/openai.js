@@ -112,6 +112,7 @@ const LEO_TOOLS = [
           age_max: { type: "number", description: "Idade máxima do público (padrão: 65)" },
           genders: { type: "string", enum: ["all", "male", "female"], description: "Gênero do público" },
           interests: { type: "array", items: { type: "string" }, description: "Lista de interesses do público (ex: ['saúde', 'bem-estar', 'suplementos'])" },
+          locations: { type: "array", items: { type: "string" }, description: "Cidades ou estados para segmentar (ex: ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte']). Se vazio, segmenta todo o Brasil." },
           placement: { type: "string", description: "Posicionamentos (ex: 'feed, stories, reels')" },
           status: { type: "string", enum: ["Ativa", "Pausada"], description: "Status inicial" },
         },
@@ -127,8 +128,8 @@ const LEO_TOOLS = [
       parameters: {
         type: "object",
         properties: {
-          adset_id: { type: "number", description: "ID interno do conjunto (retornado pelo create_adset)" },
-          meta_adset_id: { type: "string", description: "ID do conjunto no Meta (retornado pelo create_adset)" },
+          adset_id: { type: "number", description: "ID interno do conjunto (retornado pelo create_adset como adset_id)" },
+          meta_adset_id: { type: "string", description: "ID do conjunto no Meta (retornado pelo create_adset como meta_adset_id). OBRIGATÓRIO para publicar no Meta — sempre passe este valor do resultado do create_adset." },
           name: { type: "string", description: "Nome do anúncio (ex: 'Anúncio 1 - feed_08 - ângulo dor')" },
           headline: { type: "string", description: "Título principal do anúncio" },
           primary_text: { type: "string", description: "Texto principal do anúncio" },
@@ -183,12 +184,13 @@ PERSONALIDADE E FORMA DE RESPONDER:
 
 VOCÊ FAZ, NÃO SUGERE:
 - Quando pedem campanha completa, você executa TUDO em sequência usando as tools, SEM parar pra perguntar ou explicar no meio:
-  1. create_campaign → cria a campanha
-  2. create_adset → cria CADA conjunto (chama quantas vezes for necessário, 1 call por conjunto)
-  3. create_ad → cria CADA anúncio dentro de cada conjunto (1 call por anúncio)
+  1. create_campaign → cria a campanha → guarda campaign_id e meta_campaign_id do resultado
+  2. create_adset → cria CADA conjunto passando meta_campaign_id → guarda adset_id e meta_adset_id do resultado
+  3. create_ad → cria CADA anúncio passando SEMPRE o meta_adset_id do passo anterior (obrigatório para publicar no Meta)
   4. generate_ad_copy → gera copies se ainda não tiver
   5. Só DEPOIS de criar tudo, resume o que foi feito
 
+- REGRA CRÍTICA: no create_ad, SEMPRE passe meta_adset_id com o valor retornado pelo create_adset. Sem isso o anúncio não vai pro Meta.
 - NUNCA cria só a campanha e para. Campanha sem conjuntos e anúncios não serve pra nada
 - Pode chamar 10, 15, 20 tools numa mesma resposta. Cria tudo de uma vez
 - A tool create_campaign JÁ PUBLICA diretamente no Meta Ads Manager via API

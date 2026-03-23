@@ -160,6 +160,7 @@ async function executeToolCall(toolCall, userId) {
         age_max: args.age_max || 65,
         genders: args.genders || "all",
         interests: args.interests || [],
+        locations: args.locations || [],
         placement: args.placement || "feed, stories, reels",
         status: args.status || "Pausada",
         external_id: metaAdsetId ? `meta_${metaAdsetId}` : null,
