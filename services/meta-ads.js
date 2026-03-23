@@ -3,7 +3,7 @@ const { getToken } = require("./meta-auth");
 const { findOne } = require("../db/database");
 
 const META_PAGE_ID = process.env.META_PAGE_ID || "501602063233583";
-const META_INSTAGRAM_ACTOR_ID = process.env.META_INSTAGRAM_ACTOR_ID || "17841401750547973";
+const META_INSTAGRAM_ACTOR_ID = process.env.META_INSTAGRAM_ACTOR_ID || null;
 
 const API = "https://graph.facebook.com/v21.0";
 
