@@ -136,7 +136,7 @@ const LEO_TOOLS = [
           description: { type: "string", description: "Descrição/subtítulo" },
           cta: { type: "string", enum: ["SHOP_NOW", "LEARN_MORE", "SIGN_UP", "CONTACT_US", "GET_QUOTE", "SUBSCRIBE", "DOWNLOAD", "BOOK_TRAVEL", "WATCH_MORE"], description: "Call-to-action" },
           destination_url: { type: "string", description: "URL de destino do anúncio" },
-          creative_id: { type: "number", description: "ID do criativo da biblioteca a usar (opcional)" },
+          creative_id: { type: "number", description: "ID do criativo da biblioteca a usar. OBRIGATÓRIO — o Meta exige imagem para criar anúncios. Use um ID da lista de criativos disponíveis." },
           format: { type: "string", enum: ["feed", "story", "reels", "carrossel"], description: "Formato do anúncio" },
           utm: { type: "string", description: "Parâmetros UTM (ex: 'utm_source=meta&utm_campaign=camp44')" },
         },

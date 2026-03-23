@@ -172,18 +172,25 @@ async function resolveGeoLocations(token, locationNames) {
 // ─── Faz upload de imagem base64 para a Meta e retorna hash/url ───
 async function uploadImageToMeta(token, adAccountId, base64Data) {
   const base64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
+  const mimeMatch = base64Data.match(/^data:(image\/\w+);base64,/);
+  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+
+  const imageBuffer = Buffer.from(base64, "base64");
+  const formData = new FormData();
+  const blob = new Blob([imageBuffer], { type: mimeType });
+  formData.append("bytes", blob, "ad_image.jpg");
+
   const res = await fetch(
     `${API}/act_${adAccountId}/adimages?access_token=${encodeURIComponent(token)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bytes: base64 }),
-    }
+    { method: "POST", body: formData }
   );
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error(`Upload imagem (code ${data.error.code}): ${data.error.message}`);
   const images = data.images || {};
-  return Object.values(images)[0] || null; // { hash, url, width, height }
+  const result = Object.values(images)[0] || null;
+  if (!result?.hash) throw new Error("Meta não retornou hash após upload da imagem");
+  console.log("[Meta Ad] Upload imagem ok, hash:", result.hash);
+  return result; // { hash, url, width, height }
 }
 
 // ─── Create Ad Set in Meta ───
@@ -311,14 +318,9 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
             ? `data:image/jpeg;base64,${creative.image_b64}`
             : null;
         if (b64Data) {
-          try {
-            const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
-            if (uploaded?.hash) imageHash = uploaded.hash;
-            if (uploaded?.url) imageUrl = uploaded.url;
-            console.log("[Meta Ad] Imagem enviada ao Meta, hash:", imageHash);
-          } catch (e) {
-            console.error("[Meta Ad] Erro ao fazer upload de imagem:", e.message);
-          }
+          const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
+          if (uploaded?.hash) imageHash = uploaded.hash;
+          if (uploaded?.url) imageUrl = uploaded.url;
         }
       }
     }
@@ -336,6 +338,7 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   };
   if (imageHash) linkData.image_hash = imageHash;
   else if (imageUrl) linkData.picture = imageUrl;
+  else throw new Error("Nenhuma imagem disponível para o criativo. Forneça um creative_id com imagem válida.");
 
   const objectStorySpec = {
     page_id: pageId,
