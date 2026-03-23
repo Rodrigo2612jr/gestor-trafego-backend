@@ -177,14 +177,19 @@ async function executeToolCall(toolCall, userId) {
 
     case "create_ad": {
       let metaAdId = null;
+      let metaAdError = null;
 
       if (args.meta_adset_id) {
         try {
           const result = await metaCreateAd(userId, args);
           metaAdId = result.id;
         } catch (err) {
+          metaAdError = err.message;
           console.error("[Leo] Meta ad creation failed:", err.message);
         }
+      } else {
+        metaAdError = "meta_adset_id não foi passado — anúncio salvo só localmente";
+        console.warn("[Leo] create_ad chamado sem meta_adset_id");
       }
 
       const destinationUrl = args.destination_url
@@ -206,7 +211,13 @@ async function executeToolCall(toolCall, userId) {
         external_id: metaAdId ? `meta_${metaAdId}` : null,
       });
 
-      return JSON.stringify({ success: true, ad_id: ad.id, name: ad.name, message: `Anúncio "${ad.name}" criado!` });
+      const msg = metaAdId
+        ? `Anúncio "${ad.name}" criado no Meta (ID: ${metaAdId})!`
+        : metaAdError
+          ? `Anúncio "${ad.name}" salvo localmente. Erro no Meta: ${metaAdError}`
+          : `Anúncio "${ad.name}" criado!`;
+
+      return JSON.stringify({ success: !!metaAdId, ad_id: ad.id, meta_ad_id: metaAdId, name: ad.name, meta_error: metaAdError || null, message: msg });
     }
 
     case "create_alert": {

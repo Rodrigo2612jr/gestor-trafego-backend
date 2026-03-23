@@ -322,12 +322,18 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   if (META_INSTAGRAM_ACTOR_ID) objectStorySpec.instagram_actor_id = META_INSTAGRAM_ACTOR_ID;
 
   // 1. Criar criativo no Meta
+  const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
+  console.log("[Meta Ad] Criativo payload:", JSON.stringify(creativePayload, null, 2));
   const creativeRes = await fetch(
     `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `Creative: ${name}`, object_story_spec: objectStorySpec }) }
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(creativePayload) }
   );
   const creativeData = await creativeRes.json();
-  if (creativeData.error) throw new Error(creativeData.error.message || "Erro ao criar criativo no Meta");
+  if (creativeData.error) {
+    console.error("[Meta Ad] Erro criativo:", JSON.stringify(creativeData.error, null, 2));
+    const blame = creativeData.error.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
+    throw new Error(`Meta criativo erro: ${creativeData.error.message}${blame ? ` (campo: ${blame})` : ""}`);
+  }
 
   // 2. Criar anúncio usando o criativo
   const adRes = await fetch(
@@ -335,7 +341,10 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, adset_id: meta_adset_id, creative: { creative_id: creativeData.id }, status: "PAUSED" }) }
   );
   const adData = await adRes.json();
-  if (adData.error) throw new Error(adData.error.message || "Erro ao criar anúncio no Meta");
+  if (adData.error) {
+    console.error("[Meta Ad] Erro anúncio:", JSON.stringify(adData.error, null, 2));
+    throw new Error(`Meta anúncio erro: ${adData.error.message}`);
+  }
 
   return { id: adData.id, meta_creative_id: creativeData.id };
 }

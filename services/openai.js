@@ -140,7 +140,7 @@ const LEO_TOOLS = [
           format: { type: "string", enum: ["feed", "story", "reels", "carrossel"], description: "Formato do anúncio" },
           utm: { type: "string", description: "Parâmetros UTM (ex: 'utm_source=meta&utm_campaign=camp44')" },
         },
-        required: ["adset_id", "name", "headline", "primary_text", "cta"],
+        required: ["adset_id", "meta_adset_id", "name", "headline", "primary_text", "cta", "destination_url"],
       },
     },
   },
