@@ -171,14 +171,11 @@ async function resolveGeoLocations(token, locationNames) {
 
 // ─── Faz upload de imagem base64 para a Meta e retorna hash/url ───
 async function uploadImageToMeta(token, adAccountId, base64Data) {
+  // Meta adimages API espera `bytes` como string base64 em multipart (campo texto, não arquivo)
   const base64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
-  const mimeMatch = base64Data.match(/^data:(image\/\w+);base64,/);
-  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
 
-  const imageBuffer = Buffer.from(base64, "base64");
   const formData = new FormData();
-  const blob = new Blob([imageBuffer], { type: mimeType });
-  formData.append("bytes", blob, "ad_image.jpg");
+  formData.append("bytes", base64); // string base64 pura como campo de texto
 
   const res = await fetch(
     `${API}/act_${adAccountId}/adimages?access_token=${encodeURIComponent(token)}`,
