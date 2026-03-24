@@ -1,1 +1,1 @@
-{"sha":"e875cd6","message":"chore: version.json atualizado","deployedAt":"2026-03-24T18:24:17.794Z"}
+{"sha":"6b23180","message":"fix: aguarda Supabase confirmar oauth_tokens antes de responder, evita desconexão","deployedAt":"2026-03-24T18:25:26.464Z"}
