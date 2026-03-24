@@ -286,14 +286,10 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     status: status === "Ativa" ? "ACTIVE" : "PAUSED",
   };
 
-  // destination_type obrigatório na API v21 para objetivos orientados a destino
+  // destination_type só para OUTCOME_LEADS (obrigatório na API v21)
   if (campaignObjective === "OUTCOME_LEADS") {
     const pageId = await getPageId(token);
     if (pageId) body.promoted_object = { page_id: pageId };
-    body.destination_type = "WEBSITE";
-  } else if (campaignObjective === "OUTCOME_TRAFFIC") {
-    body.destination_type = "WEBSITE";
-  } else if (campaignObjective === "OUTCOME_SALES") {
     body.destination_type = "WEBSITE";
   }
 
