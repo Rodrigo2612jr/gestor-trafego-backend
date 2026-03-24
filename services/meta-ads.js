@@ -378,8 +378,17 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   );
   const adData = await adRes.json();
   if (adData.error) {
-    console.error("[Meta Ad] Erro anúncio:", JSON.stringify(adData.error, null, 2));
-    throw new Error(`Meta anúncio erro (code ${adData.error.code}): ${adData.error.message}`);
+    const ae = adData.error;
+    const blame = ae.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
+    const userMsg = ae.error_user_msg || ae.error_user_title || "";
+    const details = [
+      `code ${ae.code}${ae.error_subcode ? `/${ae.error_subcode}` : ""}`,
+      blame ? `campo: ${blame}` : "",
+      userMsg ? `detalhe: ${userMsg}` : "",
+    ].filter(Boolean).join(" | ");
+    console.error("[Meta Ad] Erro anúncio completo:", JSON.stringify(ae, null, 2));
+    console.error("[Meta Ad] adset_id usado:", meta_adset_id, "| creative_id usado:", creativeData.id);
+    throw new Error(`Meta anúncio erro (${details}): ${ae.message}`);
   }
 
   return { id: adData.id, meta_creative_id: creativeData.id };
