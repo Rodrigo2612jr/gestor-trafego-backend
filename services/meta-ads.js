@@ -357,7 +357,7 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
 
   // 1. Criar criativo no Meta
   const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
-  console.log("[Meta Ad] page_id:", pageId, "| image_hash:", imageHash, "| picture:", imageUrl);
+  console.log("[Meta Ad] page_id:", pageId, "| image_hash:", imageHash);
   const creativeRes = await fetch(
     `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(creativePayload) }
