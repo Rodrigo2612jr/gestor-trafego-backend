@@ -44,13 +44,19 @@ router.post("/generate", async (req, res) => {
     const result = await generateImage(prompt, size || "1024x1024");
 
     // Save the generated image as a creative
+    // Prefer base64 (permanent) over URL (expires in 1h)
+    const imageUrl = result.b64_json
+      ? `data:image/jpeg;base64,${result.b64_json}`
+      : result.url || null;
+
     const creative = insert("creatives", {
       user_id: req.userId,
       name: `AI: ${prompt.substring(0, 60)}`,
       type: "image",
       channel: "meta",
       status: "ready",
-      image_url: result.url,
+      image_url: imageUrl,
+      image_b64: result.b64_json || null,
       revised_prompt: result.revised_prompt,
       ai_generated: true,
       created_at: new Date().toISOString(),

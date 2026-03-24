@@ -287,9 +287,16 @@ router.post("/", async (req, res) => {
   }).filter(m => typeof m.content === "string" && m.content.trim());
 
   // Inject visual context: include creative images so Leo can actually see them
-  // Accept both base64 (data:) and external URLs (https://) — skip local /api/ paths
+  // Priority: data: URL > https:// URL > image_b64 field
   const creativesWithImages = creatives
-    .filter(c => c.image_url && (c.image_url.startsWith("data:") || c.image_url.startsWith("https://")))
+    .map(c => {
+      let url = null;
+      if (c.image_url?.startsWith("data:")) url = c.image_url;
+      else if (c.image_b64) url = `data:image/jpeg;base64,${c.image_b64}`;
+      else if (c.image_url?.startsWith("https://")) url = c.image_url;
+      return url ? { ...c, _visionUrl: url } : null;
+    })
+    .filter(Boolean)
     .slice(0, 8);
 
   console.log(`[Leo Vision] ${creativesWithImages.length} imagens enviadas de ${creatives.length} criativos totais`);
@@ -305,7 +312,7 @@ router.post("/", async (req, res) => {
         },
         ...creativesWithImages.map(c => ({
           type: "image_url",
-          image_url: { url: c.image_url, detail: "high" },
+          image_url: { url: c._visionUrl, detail: "high" },
         })),
       ],
     };
