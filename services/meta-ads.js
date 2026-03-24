@@ -275,10 +275,10 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   if (campaignObjective === "OUTCOME_LEADS") {
     const pageId = await getPageId(token);
     if (pageId) body.promoted_object = { page_id: pageId };
-    body.destination_type = "ON_AD"; // formulário instantâneo — não exige pixel
+    body.destination_type = "WEBSITE";
   }
 
-  // promoted_object para OUTCOME_SALES (recomendado, mas não obrigatório sem pixel)
+  // promoted_object para OUTCOME_SALES
   if (campaignObjective === "OUTCOME_SALES") {
     const pageId = await getPageId(token);
     if (pageId) body.promoted_object = { page_id: pageId };
