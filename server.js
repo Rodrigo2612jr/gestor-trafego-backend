@@ -22,6 +22,15 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ─── Páginas legais (retornam 200 garantido para validação da Meta) ───
+app.get("/privacidade", (_req, res) => {
+  res.status(200).send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Política de Privacidade — Gestor Leo IA</title><style>body{font-family:sans-serif;max-width:700px;margin:60px auto;padding:0 20px;color:#222;line-height:1.7}h1{font-size:24px}h2{font-size:18px;margin-top:32px}</style></head><body><h1>Política de Privacidade</h1><p>Última atualização: março de 2026</p><p>O Gestor Leo IA é uma ferramenta de gestão de tráfego pago que se conecta à API de Marketing da Meta para criar e gerenciar campanhas publicitárias.</p><h2>Dados coletados</h2><p>O aplicativo acessa dados da sua conta de anúncios do Meta Ads exclusivamente para exibição e gerenciamento interno. Nenhum dado é compartilhado com terceiros.</p><h2>Uso dos dados</h2><p>Os dados são usados apenas para criação e gerenciamento de campanhas, exibição de métricas e geração de relatórios internos.</p><h2>Armazenamento</h2><p>Tokens de acesso são armazenados de forma segura e usados exclusivamente para autenticação com a API da Meta.</p><h2>Contato</h2><p>contato@emporiopascoto.com.br</p></body></html>`);
+});
+
+app.get("/exclusao-dados", (_req, res) => {
+  res.status(200).send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Exclusão de Dados — Gestor Leo IA</title><style>body{font-family:sans-serif;max-width:700px;margin:60px auto;padding:0 20px;color:#222;line-height:1.7}h1{font-size:24px}</style></head><body><h1>Exclusão de Dados</h1><p>Para solicitar a exclusão dos seus dados do Gestor Leo IA, entre em contato pelo e-mail abaixo. Seus dados serão removidos em até 30 dias.</p><p><strong>E-mail:</strong> contato@emporiopascoto.com.br</p></body></html>`);
+});
+
 // ─── Version / deploy info ───
 const _versionInfo = (() => { try { return require("./version.json"); } catch { return { sha: "local", message: "" }; } })();
 app.get("/api/version", (_req, res) => {
