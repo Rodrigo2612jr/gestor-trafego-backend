@@ -23,13 +23,9 @@ app.get("/api/health", (_req, res) => {
 });
 
 // ─── Version / deploy info ───
+const _versionInfo = (() => { try { return require("./version.json"); } catch { return { sha: "local", message: "" }; } })();
 app.get("/api/version", (_req, res) => {
-  res.json({
-    sha: (process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 7),
-    message: process.env.VERCEL_GIT_COMMIT_MESSAGE || process.env.DEPLOY_DESC || "",
-    env: process.env.VERCEL_ENV || "local",
-    deployedAt: new Date().toISOString(),
-  });
+  res.json({ sha: _versionInfo.sha, message: _versionInfo.message });
 });
 
 // ─── Public routes ───
