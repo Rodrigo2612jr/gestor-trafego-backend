@@ -22,6 +22,16 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ─── Version / deploy info ───
+app.get("/api/version", (_req, res) => {
+  res.json({
+    sha: (process.env.VERCEL_GIT_COMMIT_SHA || "local").slice(0, 7),
+    message: process.env.VERCEL_GIT_COMMIT_MESSAGE || process.env.DEPLOY_DESC || "",
+    env: process.env.VERCEL_ENV || "local",
+    deployedAt: new Date().toISOString(),
+  });
+});
+
 // ─── Public routes ───
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/oauth", require("./routes/oauth"));
