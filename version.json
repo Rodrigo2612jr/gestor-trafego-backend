@@ -1,1 +1,1 @@
-{"sha":"4545a12","message":"fix: callback GET+POST"}
+{"sha":"0c9417b","message":"fix: gera version.json automaticamente no build do Vercel com SHA real do commit"}
