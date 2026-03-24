@@ -259,8 +259,14 @@ router.post("/", async (req, res) => {
     `• [${a.severity}] ${a.title} — ${a.desc || a.description || ""}`
   ).join("\n");
 
-  const creativesSummary = creatives.slice(0, 15).map(c =>
-    `• [ID:${c.id}] "${c.name}" | Formato: ${c.format || c.type || "Imagem"} | Canal: ${c.channel || "-"} | Status: ${c.status || "-"}${c.category ? ` | Categoria: ${c.category}` : ""}${c.ai_generated ? " | Gerado por IA" : ""}`
+  const creativesWithVision = new Set(
+    creatives
+      .filter(c => c.image_url?.startsWith("data:") || c.image_b64 || c.image_url?.startsWith("https://"))
+      .map(c => c.id)
+  );
+
+  const creativesSummary = creatives.slice(0, 20).map(c =>
+    `• [ID:${c.id}${creativesWithVision.has(c.id) ? " 👁️VISUAL" : ""}] "${c.name}" | Formato: ${c.format || c.type || "Imagem"} | Canal: ${c.channel || "-"} | Status: ${c.status || "-"}${c.category ? ` | Categoria: ${c.category}` : ""}${c.ai_generated ? " | IA" : ""}`
   ).join("\n");
 
   const userData = {
@@ -287,7 +293,7 @@ router.post("/", async (req, res) => {
   }).filter(m => typeof m.content === "string" && m.content.trim());
 
   // Inject visual context: include creative images so Leo can actually see them
-  // Priority: data: URL > https:// URL > image_b64 field
+  // Priority: data: URL > image_b64 field > https:// URL
   const creativesWithImages = creatives
     .map(c => {
       let url = null;
@@ -297,7 +303,7 @@ router.post("/", async (req, res) => {
       return url ? { ...c, _visionUrl: url } : null;
     })
     .filter(Boolean)
-    .slice(0, 8);
+    .slice(0, 20);
 
   console.log(`[Leo Vision] ${creativesWithImages.length} imagens enviadas de ${creatives.length} criativos totais`);
 
