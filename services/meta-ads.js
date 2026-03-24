@@ -267,6 +267,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     age_max: age_max || 65,
     genders: genderArr,
     geo_locations: geoLocations,
+    targeting_automation: { advantage_audience: 0 }, // obrigatório nessa conta Meta
   };
 
   // Resolve interest names → IDs reais da Meta
