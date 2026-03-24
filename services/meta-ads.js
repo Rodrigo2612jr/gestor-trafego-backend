@@ -267,7 +267,6 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     age_max: age_max || 65,
     genders: genderArr,
     geo_locations: geoLocations,
-    targeting_automation: { advantage_audience: 0 },
   };
 
   // Resolve interest names → IDs reais da Meta
@@ -294,11 +293,8 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     body.destination_type = "WEBSITE";
   }
 
-  // promoted_object para OUTCOME_SALES
-  if (campaignObjective === "OUTCOME_SALES") {
-    const pageId = await getPageId(token);
-    if (pageId) body.promoted_object = { page_id: pageId };
-  }
+  // promoted_object para OUTCOME_SALES só se tiver pixel configurado
+  // sem pixel, não mandar promoted_object (evita erro de parâmetro inválido)
 
   // Só manda daily_budget no adset se a campanha NÃO tiver CBO
   if (!campaignHasBudget) {
