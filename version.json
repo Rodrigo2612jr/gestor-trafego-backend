@@ -1,1 +1,1 @@
-{"sha":"0c9417b","message":"fix: gera version.json automaticamente no build do Vercel com SHA real do commit"}
+{"sha":"a11949c","message":"chore: atualiza version.json para deploy","deployedAt":"2026-03-24T18:18:52.348Z"}

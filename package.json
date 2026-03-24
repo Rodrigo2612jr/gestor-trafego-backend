@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "seed": "node db/seed.js",
-    "vercel-build": "node -e \"const s=process.env.VERCEL_GIT_COMMIT_SHA;const m=process.env.VERCEL_GIT_COMMIT_MESSAGE;require('fs').writeFileSync('version.json',JSON.stringify({sha:s?s.slice(0,7):'local',message:m||''}));\""
+    "vercel-build": "node -e \"const s=process.env.VERCEL_GIT_COMMIT_SHA;const m=process.env.VERCEL_GIT_COMMIT_MESSAGE;require('fs').writeFileSync('version.json',JSON.stringify({sha:s?s.slice(0,7):'local',message:m||'',deployedAt:new Date().toISOString()}));\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.2",
