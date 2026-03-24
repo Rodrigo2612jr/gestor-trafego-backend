@@ -11,7 +11,7 @@ function getAdAccountId(userId) {
 
 // Busca o Page ID real da conta do usuário na Meta
 async function getPageId(token) {
-  if (process.env.META_PAGE_ID) return process.env.META_PAGE_ID;
+  if (process.env.META_PAGE_ID) return process.env.META_PAGE_ID.trim();
   try {
     const res = await fetch(`${API}/me/accounts?fields=id,name&limit=5&access_token=${encodeURIComponent(token)}`);
     const data = await res.json();
