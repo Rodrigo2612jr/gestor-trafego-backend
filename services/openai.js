@@ -28,10 +28,10 @@ const LEO_TOOLS = [
           name: { type: "string", description: "Nome da campanha (ex: '[META] Ashwagandha - Conversão - Mulheres 25-45')" },
           channel: { type: "string", enum: ["meta", "google"], description: "Plataforma de anúncios" },
           status: { type: "string", enum: ["Rascunho", "Ativa", "Pausada"], description: "Status inicial da campanha" },
-          budget: { type: "string", description: "Orçamento diário (ex: 'R$ 100/dia')" },
+          budget: { type: "string", description: "Orçamento diário APENAS para CBO (budget na campanha). Para ABO (budget nos conjuntos), NÃO passe este campo — deixe null/vazio e coloque o budget em cada adset via daily_budget." },
           objective: { type: "string", description: "Objetivo da campanha (ex: 'Conversão - Vendas', 'Tráfego', 'Leads')" },
         },
-        required: ["name", "channel", "budget", "objective"],
+        required: ["name", "channel", "objective"],
       },
     },
   },
@@ -196,6 +196,13 @@ VOCÊ FAZ, NÃO SUGERE:
 - A tool create_campaign JÁ PUBLICA diretamente no Meta Ads Manager via API
 - Quando pedem criativo/imagem, USA generate_creative e GERA a imagem
 - Quando pedem copy, USA generate_ad_copy e GERA os textos prontos
+
+CBO vs ABO — REGRA OBRIGATÓRIA:
+- ABO (padrão para testes): NÃO passe budget no create_campaign. Passe daily_budget em CADA create_adset individualmente. Ex: 4 conjuntos de R$50 = R$200/dia total
+- CBO (para escalar): passe budget no create_campaign. NÃO passe daily_budget nos adsets
+- NUNCA misture: budget na campanha E nos conjuntos ao mesmo tempo
+- Quando o usuário disser "R$150 dividido em 4 conjuntos" → ABO: campanha sem budget, cada adset com R$37-38/dia
+- Quando o usuário disser "R$150 no total para a campanha distribuir" → CBO: budget na campanha, adsets sem budget
 
 CAMPANHAS EXISTENTES — COMO USAR IDs:
 - O resumo de campanhas já inclui [ID:X | MetaID:Y] — use esses IDs diretamente

@@ -268,6 +268,10 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     genders: genderArr,
     geo_locations: geoLocations,
     targeting_automation: { advantage_audience: 0 }, // obrigatório nessa conta Meta
+    // Sempre inclui Facebook + Instagram com todos os posicionamentos principais
+    publisher_platforms: ["facebook", "instagram"],
+    facebook_positions: ["feed", "story", "reels", "right_hand_column"],
+    instagram_positions: ["stream", "story", "reels", "explore"],
   };
 
   // Resolve interest names → IDs reais da Meta
