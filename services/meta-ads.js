@@ -149,11 +149,26 @@ async function resolveInterestIds(token, interestNames) {
   return resolved;
 }
 
+// Mapa de nomes de países → código ISO (evita buscar "Brasil" e achar "Assis Brasil, Acre")
+const COUNTRY_NAME_TO_CODE = {
+  "brasil": "BR", "brazil": "BR",
+  "argentina": "AR", "mexico": "MX", "méxico": "MX",
+  "portugal": "PT", "colombia": "CO", "colômbia": "CO",
+  "chile": "CL", "peru": "PE", "uruguai": "UY", "paraguai": "PY",
+  "estados unidos": "US", "usa": "US", "eua": "US",
+};
+
 // ─── Resolve nomes de cidades/estados para chaves geo da Meta ───
 async function resolveGeoLocations(token, locationNames) {
   const cities = [];
   const regions = [];
+  const countries = [];
   for (const name of locationNames) {
+    const lower = name.toLowerCase().trim();
+    if (COUNTRY_NAME_TO_CODE[lower]) {
+      countries.push(COUNTRY_NAME_TO_CODE[lower]);
+      continue;
+    }
     try {
       const res = await fetch(
         `${API}/search?type=adgeolocation&q=${encodeURIComponent(name)}&location_types=%5B%22city%22%2C%22region%22%5D&limit=3&access_token=${encodeURIComponent(token)}`
@@ -166,7 +181,7 @@ async function resolveGeoLocations(token, locationNames) {
       }
     } catch { /* pula localização que não resolver */ }
   }
-  return { cities, regions };
+  return { cities, regions, countries };
 }
 
 // ─── Faz upload de imagem para Meta e retorna hash/url ───
@@ -238,9 +253,10 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   // Resolve localizações geográficas
   let geoLocations = { countries: ["BR"] };
   if (locations && locations.length > 0) {
-    const { cities, regions } = await resolveGeoLocations(token, locations);
-    if (cities.length > 0 || regions.length > 0) {
+    const { cities, regions, countries } = await resolveGeoLocations(token, locations);
+    if (cities.length > 0 || regions.length > 0 || countries.length > 0) {
       geoLocations = {};
+      if (countries.length > 0) geoLocations.countries = countries;
       if (cities.length > 0) geoLocations.cities = cities;
       if (regions.length > 0) geoLocations.regions = regions;
     }
