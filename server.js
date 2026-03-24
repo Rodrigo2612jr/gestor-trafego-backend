@@ -46,6 +46,7 @@ app.use("/api/voice", authMiddleware, require("./routes/voice"));
 app.use("/api/images", authMiddleware, require("./routes/images"));
 app.use("/api/settings", authMiddleware, require("./routes/settings"));
 app.use("/api/debug-adset", authMiddleware, require("./routes/debug-adset"));
+app.use("/api/debug-ad", authMiddleware, require("./routes/debug-ad"));
 
 // ─── App data (single request carrega tudo) ───
 app.get("/api/app-data", authMiddleware, (req, res) => {

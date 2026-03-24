@@ -358,10 +358,17 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   );
   const creativeData = await creativeRes.json();
   if (creativeData.error) {
-    console.error("[Meta Ad] Erro criativo:", JSON.stringify(creativeData.error, null, 2));
-    const blame = creativeData.error.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
-    const code = `code ${creativeData.error.code}${creativeData.error.error_subcode ? `/${creativeData.error.error_subcode}` : ""}`;
-    throw new Error(`Meta criativo erro (${code}): ${creativeData.error.message}${blame ? ` — campo: ${blame}` : ""}`);
+    const e = creativeData.error;
+    const blame = e.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
+    const userMsg = e.error_user_msg || e.error_user_title || "";
+    const details = [
+      `code ${e.code}${e.error_subcode ? `/${e.error_subcode}` : ""}`,
+      blame ? `campo: ${blame}` : "",
+      userMsg ? `detalhe: ${userMsg}` : "",
+    ].filter(Boolean).join(" | ");
+    console.error("[Meta Ad] Erro criativo completo:", JSON.stringify(e, null, 2));
+    console.error("[Meta Ad] Payload enviado:", JSON.stringify(creativePayload, null, 2));
+    throw new Error(`Meta criativo erro (${details}): ${e.message}`);
   }
 
   // 2. Criar anúncio usando o criativo
