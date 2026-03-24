@@ -169,24 +169,34 @@ async function resolveGeoLocations(token, locationNames) {
   return { cities, regions };
 }
 
-// ─── Faz upload de imagem base64 para a Meta e retorna hash/url ───
-async function uploadImageToMeta(token, adAccountId, base64Data) {
-  // Meta adimages API espera `bytes` como string base64 em multipart (campo texto, não arquivo)
-  const base64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
+// ─── Faz upload de imagem para Meta e retorna hash/url ───
+// imageSource: "https://..." URL ou "data:image/...;base64,..." string
+async function uploadImageToMeta(token, adAccountId, imageSource) {
+  const apiUrl = `${API}/act_${adAccountId}/adimages?access_token=${encodeURIComponent(token)}`;
 
-  const formData = new FormData();
-  formData.append("bytes", base64); // string base64 pura como campo de texto
+  let res;
+  if (imageSource.startsWith("https://")) {
+    // Opção 1: upload por URL — Meta baixa a imagem diretamente (mais simples e confiável)
+    const params = new URLSearchParams({ url: imageSource });
+    res = await fetch(apiUrl, { method: "POST", body: params });
+  } else {
+    // Opção 2: upload binário — converte base64 para buffer e envia como arquivo
+    const base64 = imageSource.replace(/^data:[^;]+;base64,/, "");
+    const mimeMatch = imageSource.match(/^data:([^;]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const imageBuffer = Buffer.from(base64, "base64");
+    const formData = new FormData();
+    const blob = new Blob([imageBuffer], { type: mimeType });
+    formData.append("filename", blob, "ad_image.jpg"); // campo "filename" conforme docs Meta
+    res = await fetch(apiUrl, { method: "POST", body: formData });
+  }
 
-  const res = await fetch(
-    `${API}/act_${adAccountId}/adimages?access_token=${encodeURIComponent(token)}`,
-    { method: "POST", body: formData }
-  );
   const data = await res.json();
   if (data.error) throw new Error(`Upload imagem (code ${data.error.code}): ${data.error.message}`);
   const images = data.images || {};
   const result = Object.values(images)[0] || null;
-  if (!result?.hash) throw new Error("Meta não retornou hash após upload da imagem");
-  console.log("[Meta Ad] Upload imagem ok, hash:", result.hash);
+  if (!result?.hash) throw new Error("Meta não retornou hash após upload — resposta: " + JSON.stringify(data));
+  console.log("[Meta Ad] Upload imagem ok, hash:", result.hash, "| size:", result.width, "x", result.height);
   return result; // { hash, url, width, height }
 }
 
@@ -299,39 +309,23 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   const pageId = await getPageId(token);
   if (!pageId) throw new Error("Nenhuma página Facebook encontrada na conta. Configure META_PAGE_ID.");
 
-  // Busca imagem do criativo e faz upload para Meta (sempre via hash, nunca URL externa)
+  // Busca imagem do criativo e faz upload para Meta (sempre via hash)
   let imageHash = null;
   if (creative_id) {
     const creative = findOne("creatives", c => c.id === Number(creative_id));
     if (creative) {
-      let b64Data = null;
+      let imageSource = null;
 
-      if (creative.image_url?.startsWith("data:")) {
-        // Já é data URI — usa direto
-        b64Data = creative.image_url;
+      if (creative.image_url?.startsWith("https://")) {
+        imageSource = creative.image_url; // Meta baixa direto da URL (mais confiável)
+      } else if (creative.image_url?.startsWith("data:")) {
+        imageSource = creative.image_url;
       } else if (creative.image_b64) {
-        // Base64 puro salvo no banco
-        b64Data = `data:image/png;base64,${creative.image_b64}`;
-      } else if (creative.image_url?.startsWith("https://")) {
-        // URL externa (pode estar expirada) — tenta baixar primeiro
-        console.log("[Meta Ad] Baixando imagem da URL para upload ao Meta...");
-        try {
-          const imgRes = await fetch(creative.image_url);
-          if (imgRes.ok) {
-            const buffer = await imgRes.arrayBuffer();
-            const b64 = Buffer.from(buffer).toString("base64");
-            const ct = imgRes.headers.get("content-type") || "image/jpeg";
-            b64Data = `data:${ct};base64,${b64}`;
-          } else {
-            throw new Error(`URL da imagem retornou ${imgRes.status} — criativo pode precisar ser regerado`);
-          }
-        } catch (e) {
-          throw new Error(`Imagem do criativo ${creative_id} inacessível: ${e.message}`);
-        }
+        imageSource = `data:image/png;base64,${creative.image_b64}`;
       }
 
-      if (b64Data) {
-        const uploaded = await uploadImageToMeta(token, adAccountId, b64Data);
+      if (imageSource) {
+        const uploaded = await uploadImageToMeta(token, adAccountId, imageSource);
         imageHash = uploaded.hash;
       }
     }
