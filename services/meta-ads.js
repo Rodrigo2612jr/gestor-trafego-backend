@@ -239,7 +239,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const OBJECTIVE_TO_GOAL = {
     OUTCOME_LEADS:      { optimization_goal: "LEAD_GENERATION",      billing_event: "IMPRESSIONS" },
     OUTCOME_SALES:      { optimization_goal: "OFFSITE_CONVERSIONS",  billing_event: "IMPRESSIONS" },
-    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "LINK_CLICKS" },
+    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "IMPRESSIONS" },
     OUTCOME_AWARENESS:  { optimization_goal: "REACH",                billing_event: "IMPRESSIONS" },
     OUTCOME_ENGAGEMENT: { optimization_goal: "POST_ENGAGEMENT",      billing_event: "IMPRESSIONS" },
     OUTCOME_APP_PROMOTION: { optimization_goal: "APP_INSTALLS",      billing_event: "IMPRESSIONS" },
@@ -286,15 +286,16 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     status: status === "Ativa" ? "ACTIVE" : "PAUSED",
   };
 
-  // promoted_object + destination_type obrigatórios para OUTCOME_LEADS na API v21
+  // destination_type obrigatório na API v21 para objetivos orientados a destino
   if (campaignObjective === "OUTCOME_LEADS") {
     const pageId = await getPageId(token);
     if (pageId) body.promoted_object = { page_id: pageId };
     body.destination_type = "WEBSITE";
+  } else if (campaignObjective === "OUTCOME_TRAFFIC") {
+    body.destination_type = "WEBSITE";
+  } else if (campaignObjective === "OUTCOME_SALES") {
+    body.destination_type = "WEBSITE";
   }
-
-  // promoted_object para OUTCOME_SALES só se tiver pixel configurado
-  // sem pixel, não mandar promoted_object (evita erro de parâmetro inválido)
 
   // Só manda daily_budget no adset se a campanha NÃO tiver CBO
   if (!campaignHasBudget) {
