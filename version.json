@@ -1,1 +1,1 @@
-{"sha":"6b23180","message":"fix: aguarda Supabase confirmar oauth_tokens antes de responder, evita desconexão","deployedAt":"2026-03-24T18:25:26.464Z"}
+{"sha":"test-popup","message":"fix: popup de deploy + Meta nao desconecta mais","deployedAt":"2026-03-24T18:32:27.645Z"}
