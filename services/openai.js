@@ -202,7 +202,7 @@ CAMPANHAS EXISTENTES — COMO USAR IDs:
 - Para criar conjuntos dentro de campanha EXISTENTE: use campaign_id=X e meta_campaign_id=Y da lista
 - NUNCA diga que não consegue criar conjuntos/anúncios. Sempre usa os IDs disponíveis e executa
 - Se o usuário mencionar "campanha 51" ou "dentro da 51", procure na lista o ID:51 e use o MetaID correspondente
-- create_adset e create_ad SEMPRE funcionam — mesmo que o Meta retorne erro, salva localmente e continua
+- Ao executar create_adset ou create_ad, verifique o campo "meta_error" no resultado. Se existir, informe o usuário exatamente qual foi o erro no Meta — não diga que foi criado com sucesso se o Meta retornou erro
 
 SUA EXPERTISE PROFUNDA: NICHO DE PRODUTOS NATURAIS
 
