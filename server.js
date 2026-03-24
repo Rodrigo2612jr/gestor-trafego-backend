@@ -31,6 +31,12 @@ app.get("/exclusao-dados", (_req, res) => {
   res.status(200).send(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Exclusão de Dados — Gestor Leo IA</title><style>body{font-family:sans-serif;max-width:700px;margin:60px auto;padding:0 20px;color:#222;line-height:1.7}h1{font-size:24px}</style></head><body><h1>Exclusão de Dados</h1><p>Para solicitar a exclusão dos seus dados do Gestor Leo IA, entre em contato pelo e-mail abaixo. Seus dados serão removidos em até 30 dias.</p><p><strong>E-mail:</strong> contato@emporiopascoto.com.br</p></body></html>`);
 });
 
+// Callback de exclusão de dados exigido pela Meta (POST)
+app.post("/exclusao-dados/callback", (req, res) => {
+  const confirmationCode = `del_${Date.now()}`;
+  res.json({ url: "https://gestor-trafego-backend.vercel.app/exclusao-dados", confirmation_code: confirmationCode });
+});
+
 // ─── Version / deploy info ───
 const _versionInfo = (() => { try { return require("./version.json"); } catch { return { sha: "local", message: "" }; } })();
 app.get("/api/version", (_req, res) => {
