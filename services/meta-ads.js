@@ -268,10 +268,10 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     genders: genderArr,
     geo_locations: geoLocations,
     targeting_automation: { advantage_audience: 0 }, // obrigatório nessa conta Meta
-    // Sempre inclui Facebook + Instagram (posicionamentos principais, sem right_hand_column que tem restrições)
+    // Facebook + Instagram — feed apenas (mínimo garantido pela Meta)
     publisher_platforms: ["facebook", "instagram"],
-    facebook_positions: ["feed", "story", "reels"],
-    instagram_positions: ["stream", "story", "reels"],
+    facebook_positions: ["feed"],
+    instagram_positions: ["stream"],
   };
 
   // Resolve interest names → IDs reais da Meta
@@ -312,9 +312,12 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const data = await res.json();
 
   if (data.error) {
-    console.error("[Meta AdSet] Erro completo:", JSON.stringify(data.error, null, 2));
-    const blame = data.error.blame_field_specs?.map(b => b.join(".")).join(", ") || "campo desconhecido";
-    throw new Error(`Meta AdSet erro: ${data.error.message} (code: ${data.error.code}, subcode: ${data.error.error_subcode}, campo: ${blame})`);
+    const e = data.error;
+    console.error("[Meta AdSet] Erro completo:", JSON.stringify(e, null, 2));
+    console.error("[Meta AdSet] Payload enviado:", JSON.stringify(body, null, 2));
+    const blame = e.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
+    const userMsg = e.error_user_msg || e.error_user_title || "";
+    throw new Error(`Meta AdSet erro (code ${e.code}/${e.error_subcode}${blame ? ` campo: ${blame}` : ""}): ${userMsg || e.message}`);
   }
 
   return data;
