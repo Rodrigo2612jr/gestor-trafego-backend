@@ -442,11 +442,10 @@ async function createCampaign(userId, { name, objective, status, budget }) {
     status: metaStatus,
     special_ad_categories: [],
     is_adset_budget_sharing_enabled: !dailyBudgetCents, // true = ABO, false = CBO
+    bid_strategy: "LOWEST_COST_WITHOUT_CAP", // obrigatório em ambos ABO e CBO
   };
-  // bid_strategy e daily_budget só para CBO (quando há budget na campanha)
   if (dailyBudgetCents) {
     body.daily_budget = dailyBudgetCents;
-    body.bid_strategy = "LOWEST_COST_WITHOUT_CAP";
   }
 
   const res = await fetch(
