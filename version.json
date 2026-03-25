@@ -1,1 +1,5 @@
-{"sha":"c7c41cc","message":"feat: Leo busca AdSet IDs direto na Meta sem precisar do usuario","deployedAt":"2026-03-25T19:04:51.999Z"}
+{
+  "sha": "a4356c6",
+  "message": "feat: listAdSetsFromMeta aceita ID interno e campanhas ordenadas por ID desc",
+  "deployedAt": "2026-03-25T19:11:59.500Z"
+}
