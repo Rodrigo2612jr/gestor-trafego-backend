@@ -308,11 +308,18 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     status: status === "Ativa" ? "ACTIVE" : "PAUSED",
   };
 
-  // destination_type só para OUTCOME_LEADS (obrigatório na API v21)
+  // promoted_object e destination_type por objetivo
+  const pixelId = process.env.META_PIXEL_ID || null;
   if (campaignObjective === "OUTCOME_LEADS") {
-    const pageId = await getPageId(token);
-    if (pageId) body.promoted_object = { page_id: pageId };
     body.destination_type = "WEBSITE";
+    if (pixelId) {
+      body.promoted_object = { pixel_id: pixelId, custom_event_type: "LEAD" };
+    } else {
+      const pageId = await getPageId(token);
+      if (pageId) body.promoted_object = { page_id: pageId };
+    }
+  } else if (campaignObjective === "OUTCOME_SALES") {
+    if (pixelId) body.promoted_object = { pixel_id: pixelId, custom_event_type: "PURCHASE" };
   }
 
   // Só manda daily_budget no adset se a campanha NÃO tiver CBO
