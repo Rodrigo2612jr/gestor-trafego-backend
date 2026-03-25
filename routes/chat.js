@@ -256,12 +256,23 @@ router.post("/", async (req, res) => {
   const user = findOne("users", u => u.id === req.userId) || {};
   const connections = findAll("connections", r => r.user_id === req.userId && r.connected === true);
   const campaigns = findAll("campaigns", r => r.user_id === req.userId);
+  const adsets = findAll("adsets", r => r.user_id === req.userId);
+  const ads = findAll("ads", r => r.user_id === req.userId);
   const alerts = findAll("alerts", r => r.user_id === req.userId);
   const creatives = findAll("creatives", r => r.user_id === req.userId);
 
   const campaignSummary = campaigns.slice(0, 10).map(c => {
     const metaId = c.external_id?.startsWith("meta_") ? c.external_id.replace("meta_", "") : null;
     return `• [ID:${c.id}${metaId ? ` | MetaID:${metaId}` : ""}] ${c.name} (${c.channel}) — Status: ${c.status} | ROAS: ${c.roas} | CPA: ${c.cpa} | CTR: ${c.ctr} | Budget: ${c.budget} | Gasto: ${c.spend} | Conv: ${c.conv}`;
+  }).join("\n");
+
+  const adsetsSummary = adsets.slice(0, 30).map(a => {
+    return `• [AdSetID:${a.id}${a.meta_adset_id ? ` | MetaAdSetID:${a.meta_adset_id}` : " | MetaAdSetID:null"}] ${a.name} → CampanhaID:${a.campaign_id}`;
+  }).join("\n");
+
+  const adsSummary = ads.slice(0, 50).map(a => {
+    const metaAdId = a.external_id?.startsWith("meta_") ? a.external_id.replace("meta_", "") : null;
+    return `• [AdID:${a.id}${metaAdId ? ` | MetaAdID:${metaAdId}` : ""}] ${a.name} → AdSetID:${a.adset_id}`;
   }).join("\n");
 
   const alertsSummary = alerts.slice(0, 5).map(a =>
@@ -286,6 +297,8 @@ router.post("/", async (req, res) => {
     googleConnected: connections.some(c => c.platform === "google"),
     metaConnected: connections.some(c => c.platform === "meta"),
     campaignSummary,
+    adsetsSummary,
+    adsSummary,
     alertsSummary,
     creativesCount: creatives.length,
     creativesSummary,
