@@ -73,11 +73,27 @@ app.get("/api/app-data", authMiddleware, (req, res) => {
     connections[r.platform] = { connected: !!r.connected, account: r.account_name, lastSync: r.last_sync, status: r.status };
   }
   const campaigns  = findAll("campaigns",  r => r.user_id === uid);
+  const adsets     = findAll("adsets",     r => r.user_id === uid);
+  const ads        = findAll("ads",        r => r.user_id === uid);
   const creatives  = findAll("creatives",  r => r.user_id === uid);
   const audiences  = findAll("audiences",  r => r.user_id === uid);
   const keywords   = findAll("keywords",   r => r.user_id === uid);
   const alerts     = findAll("alerts",     r => r.user_id === uid && !r.resolved);
-  res.json({ connections, campaigns, creatives, audiences, keywords, alerts });
+  res.json({ connections, campaigns, adsets, ads, creatives, audiences, keywords, alerts });
+});
+
+// ─── Adsets list ───
+app.get("/api/adsets", authMiddleware, (req, res) => {
+  const { findAll } = require("./db/database");
+  const adsets = findAll("adsets", r => r.user_id === req.userId);
+  const result = adsets.map(a => ({
+    id: a.id,
+    name: a.name,
+    campaign_id: a.campaign_id,
+    meta_adset_id: a.external_id?.startsWith("meta_") ? a.external_id.replace("meta_", "") : null,
+    status: a.status,
+  }));
+  res.json(result);
 });
 
 // ─── Sync endpoint ───
