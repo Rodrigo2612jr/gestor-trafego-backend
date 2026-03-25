@@ -439,6 +439,52 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   return { id: adData.id, meta_creative_id: creativeData.id };
 }
 
+// ─── Update Ad creative (CTA, headline, text, URL) ───
+async function updateAd(userId, { meta_ad_id, cta, headline, primary_text, destination_url }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
+
+  // Busca o criativo atual do anúncio
+  const adRes = await fetch(`${API}/${meta_ad_id}?fields=creative&access_token=${encodeURIComponent(token)}`);
+  const adData = await adRes.json();
+  if (adData.error) throw new Error(`Erro ao buscar anúncio: ${adData.error.message}`);
+
+  const currentCreativeId = adData.creative?.id;
+  if (!currentCreativeId) throw new Error("Criativo do anúncio não encontrado");
+
+  // Busca detalhes do criativo atual
+  const creativeRes = await fetch(`${API}/${currentCreativeId}?fields=object_story_spec&access_token=${encodeURIComponent(token)}`);
+  const creativeData = await creativeRes.json();
+  if (creativeData.error) throw new Error(`Erro ao buscar criativo: ${creativeData.error.message}`);
+
+  const spec = creativeData.object_story_spec || {};
+  const linkData = { ...(spec.link_data || {}) };
+
+  if (cta) linkData.call_to_action = { type: cta, value: { link: destination_url || linkData.link } };
+  if (headline) linkData.name = headline;
+  if (primary_text) linkData.message = primary_text;
+  if (destination_url) { linkData.link = destination_url; if (linkData.call_to_action?.value) linkData.call_to_action.value.link = destination_url; }
+
+  const newCreativeRes = await fetch(
+    `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: `Updated Creative`, object_story_spec: { ...spec, link_data: linkData } }) }
+  );
+  const newCreative = await newCreativeRes.json();
+  if (newCreative.error) throw new Error(`Erro ao criar criativo atualizado: ${newCreative.error.message}`);
+
+  // Atualiza o anúncio com o novo criativo
+  const updateRes = await fetch(
+    `${API}/${meta_ad_id}?access_token=${encodeURIComponent(token)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ creative: { creative_id: newCreative.id } }) }
+  );
+  const updateData = await updateRes.json();
+  if (updateData.error) throw new Error(`Erro ao atualizar anúncio: ${updateData.error.message}`);
+
+  return { success: true, meta_ad_id, new_creative_id: newCreative.id };
+}
+
 // ─── Create campaign in Meta Ads Manager ───
 async function createCampaign(userId, { name, objective, status, budget }) {
   const token = getToken(userId);
@@ -511,4 +557,4 @@ async function updateCampaignStatus(userId, metaCampaignId, status) {
   return data;
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, createAd };
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, createAd, updateAd };

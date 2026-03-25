@@ -163,6 +163,24 @@ const LEO_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "update_ad",
+      description: "Atualiza um anúncio existente no Meta — muda CTA, headline, texto ou URL. Use quando pedirem para editar, alterar, mudar ou corrigir anúncios já criados.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_ad_id: { type: "string", description: "ID do anúncio no Meta (ex: '120242...')" },
+          cta: { type: "string", enum: ["SHOP_NOW", "LEARN_MORE", "SIGN_UP", "CONTACT_US", "GET_QUOTE", "SUBSCRIBE", "DOWNLOAD", "WATCH_MORE"], description: "Novo CTA" },
+          headline: { type: "string", description: "Novo título" },
+          primary_text: { type: "string", description: "Novo texto principal" },
+          destination_url: { type: "string", description: "Nova URL de destino" },
+        },
+        required: ["meta_ad_id"],
+      },
+    },
+  },
 ];
 
 // ─── Chat completion with full context and tool use ───
