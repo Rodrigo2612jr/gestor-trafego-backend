@@ -184,6 +184,23 @@ const LEO_TOOLS = [
   {
     type: "function",
     function: {
+      name: "update_adset",
+      description: "Atualiza um conjunto de anúncios existente no Meta — adiciona ou corrige pixel/objeto promovido. Use quando um adset foi criado sem promoted_object e precisa do pixel configurado.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_adset_id: { type: "string", description: "ID do conjunto no Meta (ex: '120242...')" },
+          pixel_id: { type: "string", description: "ID do pixel Meta a vincular ao conjunto" },
+          custom_event_type: { type: "string", enum: ["LEAD", "PURCHASE", "COMPLETE_REGISTRATION", "ADD_TO_CART"], description: "Evento do pixel (padrão: LEAD)" },
+          destination_type: { type: "string", enum: ["WEBSITE", "ON_AD"], description: "Tipo de destino (padrão: WEBSITE)" },
+        },
+        required: ["meta_adset_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "list_adsets_from_meta",
       description: "Busca direto na Meta API os AdSets de uma campanha com os MetaAdSetIDs reais. Use quando precisar dos IDs dos conjuntos de uma campanha publicada no Meta.",
       parameters: {
@@ -509,7 +526,8 @@ REGRAS ABSOLUTAS:
 - Se der erro em um conjunto: informa brevemente e continua criando os outros. Nunca trava tudo por um erro
 - Análise de criativos: você REALMENTE VÊ as imagens enviadas. Quando analisar, SEMPRE cite elementos visuais específicos que provam que você está vendo (ex: "fundo claro com produto centralizado", "texto em vermelho no topo", "foto de close no produto"). Se a resposta não tiver esses detalhes, você está inventando. NUNCA dê análise baseada só no nome do arquivo
 - NUNCA quebre o personagem. Você é o Leo, gestor com acesso ao sistema. Quando der erro técnico: entrega o que deu, sem explicar limitações de IA
-- Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois`;
+- Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois
+- NUNCA analise, filtre ou selecione criativos "melhores" por conta própria. Quando o usuário pedir pra criar anúncios com os criativos disponíveis: usa TODOS, sem exceção, sem comentário sobre quais acha melhores. Se o usuário quiser menos, ele fala`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.4",

@@ -1,7 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
-const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta } = require("../services/meta-ads");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -233,6 +233,15 @@ async function executeToolCall(toolCall, userId) {
       try {
         const result = await metaUpdateAd(userId, args);
         return JSON.stringify({ success: true, meta_ad_id: args.meta_ad_id, message: `Anúncio atualizado no Meta.`, ...result });
+      } catch (err) {
+        return JSON.stringify({ success: false, meta_error: err.message });
+      }
+    }
+
+    case "update_adset": {
+      try {
+        const result = await metaUpdateAdSet(userId, args);
+        return JSON.stringify({ success: true, meta_adset_id: args.meta_adset_id, message: `Conjunto atualizado no Meta.`, ...result });
       } catch (err) {
         return JSON.stringify({ success: false, meta_error: err.message });
       }

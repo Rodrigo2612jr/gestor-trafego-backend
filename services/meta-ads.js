@@ -575,6 +575,28 @@ async function updateCampaignStatus(userId, metaCampaignId, status) {
   return data;
 }
 
+// ─── Update AdSet in Meta (ex: adicionar promoted_object/pixel) ───
+async function updateAdSet(userId, { meta_adset_id, pixel_id, custom_event_type, destination_type }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  const body = {};
+  if (pixel_id) {
+    body.promoted_object = { pixel_id, custom_event_type: custom_event_type || "LEAD" };
+  }
+  if (destination_type) body.destination_type = destination_type;
+
+  console.log("[Meta AdSet Update] Payload:", JSON.stringify(body, null, 2));
+
+  const res = await fetch(
+    `${API}/${meta_adset_id}?access_token=${encodeURIComponent(token)}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta erro ao atualizar adset: ${data.error.message}`);
+  return { success: true, meta_adset_id };
+}
+
 // ─── List AdSets from Meta API for a campaign ───
 async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
   const token = getToken(userId);
@@ -595,4 +617,4 @@ async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
   return (data.data || []).map(a => ({ meta_adset_id: a.id, name: a.name, status: a.status, daily_budget: a.daily_budget }));
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, createAd, updateAd, listAdSetsFromMeta };
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta };
