@@ -272,6 +272,7 @@ router.post("/", async (req, res) => {
   const userData = {
     name: user.name,
     company: user.company,
+    website_url: user.website_url || null,
     campaignCount: campaigns.length,
     googleConnected: connections.some(c => c.platform === "google"),
     metaConnected: connections.some(c => c.platform === "meta"),

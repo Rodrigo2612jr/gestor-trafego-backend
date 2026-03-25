@@ -45,9 +45,10 @@ router.get("/me", authMiddleware, (req, res) => {
 });
 
 router.put("/me", authMiddleware, (req, res) => {
-  const { name, phone, role, company } = req.body;
+  const { name, phone, role, company, website_url } = req.body;
   update("users", u => u.id === req.userId, (u) => ({
     name: name ?? u.name, phone: phone ?? u.phone, role: role ?? u.role, company: company ?? u.company,
+    website_url: website_url ?? u.website_url,
   }));
   const user = findOne("users", u => u.id === req.userId);
   const { password, ...safe } = user;
