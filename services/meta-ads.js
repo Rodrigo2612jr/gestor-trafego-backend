@@ -329,11 +329,22 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 
   console.log("[Meta AdSet] Payload:", JSON.stringify(body, null, 2));
 
-  const res = await fetch(
-    `${API}/act_${adAccountId}/adsets?access_token=${encodeURIComponent(token)}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
-  );
-  const data = await res.json();
+  async function postAdSet(payload) {
+    const r = await fetch(
+      `${API}/act_${adAccountId}/adsets?access_token=${encodeURIComponent(token)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+    );
+    return r.json();
+  }
+
+  let data = await postAdSet(body);
+
+  // Se falhou por pixel inválido, tenta sem promoted_object
+  if (data.error && data.error.message?.includes("promoted_object[pixel_id]")) {
+    console.warn("[Meta AdSet] Pixel inválido — retentando sem promoted_object");
+    delete body.promoted_object;
+    data = await postAdSet(body);
+  }
 
   if (data.error) {
     const e = data.error;
