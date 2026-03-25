@@ -458,7 +458,14 @@ async function createCampaign(userId, { name, objective, status, budget }) {
   );
 
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message || "Erro ao criar campanha no Meta");
+  if (data.error) {
+    const e = data.error;
+    console.error("[Meta Campaign] Erro completo:", JSON.stringify(e, null, 2));
+    console.error("[Meta Campaign] Payload enviado:", JSON.stringify(body, null, 2));
+    const blame = e.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
+    const userMsg = e.error_user_msg || e.error_user_title || "";
+    throw new Error(`Meta campanha erro (code ${e.code}${e.error_subcode ? `/${e.error_subcode}` : ""}${blame ? ` campo: ${blame}` : ""}${userMsg ? ` | ${userMsg}` : ""}): ${e.message}`);
+  }
   return data; // { id: "campaign_id" }
 }
 
