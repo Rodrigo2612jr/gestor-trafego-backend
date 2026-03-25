@@ -131,11 +131,13 @@ async function fetchAudiences(userId) {
 // ─── Map objective string to Meta API objective ───
 function mapObjective(objective = "") {
   const o = objective.toLowerCase();
-  if (o.includes("venda") || o.includes("convers")) return "OUTCOME_SALES";
-  if (o.includes("lead")) return "OUTCOME_LEADS";
+  // Leads via landing page/site = OUTCOME_SALES (OFFSITE_CONVERSIONS + pixel)
+  // OUTCOME_LEADS só funciona com formulários instantâneos on-platform (sem pixel de site)
+  if (o.includes("venda") || o.includes("convers") || o.includes("lead") || o.includes("capturaç")) return "OUTCOME_SALES";
   if (o.includes("tráfego") || o.includes("trafego") || o.includes("traffic")) return "OUTCOME_TRAFFIC";
   if (o.includes("reconhec") || o.includes("awareness") || o.includes("alcance")) return "OUTCOME_AWARENESS";
   if (o.includes("engaj") || o.includes("engag")) return "OUTCOME_ENGAGEMENT";
+  if (o.includes("formulário") || o.includes("form") || o.includes("lead form")) return "OUTCOME_LEADS";
   if (o.includes("app")) return "OUTCOME_APP_PROMOTION";
   return "OUTCOME_SALES"; // default
 }
@@ -254,7 +256,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 
   // Mapeia objetivo real da campanha → optimization_goal correto
   const OBJECTIVE_TO_GOAL = {
-    OUTCOME_LEADS:      { optimization_goal: "OFFSITE_CONVERSIONS",  billing_event: "IMPRESSIONS" },
+    OUTCOME_LEADS:      { optimization_goal: "LEAD_GENERATION",      billing_event: "IMPRESSIONS" },
     OUTCOME_SALES:      { optimization_goal: "OFFSITE_CONVERSIONS",  billing_event: "IMPRESSIONS" },
     OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "LINK_CLICKS" },
     OUTCOME_AWARENESS:  { optimization_goal: "REACH",                billing_event: "IMPRESSIONS" },
@@ -311,15 +313,15 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   // promoted_object e destination_type por objetivo
   const pixelId = process.env.META_PIXEL_ID || null;
   if (campaignObjective === "OUTCOME_LEADS") {
+    // OUTCOME_LEADS = formulário on-platform, usa page_id
+    const pageId = await getPageId(token);
+    if (pageId) body.promoted_object = { page_id: pageId };
+  } else if (campaignObjective === "OUTCOME_SALES") {
+    // OUTCOME_SALES = landing page com pixel (LEAD ou PURCHASE dependendo do negócio)
     body.destination_type = "WEBSITE";
     if (pixelId) {
       body.promoted_object = { pixel_id: pixelId, custom_event_type: "LEAD" };
-    } else {
-      const pageId = await getPageId(token);
-      if (pageId) body.promoted_object = { page_id: pageId };
     }
-  } else if (campaignObjective === "OUTCOME_SALES") {
-    if (pixelId) body.promoted_object = { pixel_id: pixelId, custom_event_type: "PURCHASE" };
   }
 
   // Só manda daily_budget no adset se a campanha NÃO tiver CBO

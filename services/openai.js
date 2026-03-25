@@ -29,7 +29,7 @@ const LEO_TOOLS = [
           channel: { type: "string", enum: ["meta", "google"], description: "Plataforma de anúncios" },
           status: { type: "string", enum: ["Rascunho", "Ativa", "Pausada"], description: "Status inicial da campanha" },
           budget: { type: "string", description: "Orçamento diário APENAS para CBO (budget na campanha). Para ABO (budget nos conjuntos), NÃO passe este campo — deixe null/vazio e coloque o budget em cada adset via daily_budget." },
-          objective: { type: "string", description: "Objetivo da campanha (ex: 'Conversão - Vendas', 'Tráfego', 'Leads')" },
+          objective: { type: "string", description: "Objetivo da campanha. Para landing page/site com pixel: use 'Conversão - Leads' ou 'Conversão - Vendas' (ambos usam OUTCOME_SALES + pixel no Meta). Para formulário on-platform do Facebook: use 'Formulário Lead'. Para tráfego simples: 'Tráfego'." },
         },
         required: ["name", "channel", "objective"],
       },
