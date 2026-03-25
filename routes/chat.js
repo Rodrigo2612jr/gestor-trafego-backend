@@ -337,7 +337,7 @@ router.post("/", async (req, res) => {
       content: [
         {
           type: "text",
-          text: `[Contexto visual — criativos da biblioteca do usuário. ANALISE CADA IMAGEM REAL antes de opinar sobre qualidade, ângulo ou desempenho. NÃO INVENTE análise se não conseguir ver claramente.]\n${creativesWithImages.map((c, i) => `${i + 1}. ${c.name} (ID:${c.id})`).join("\n")}`,
+          text: `[VISÃO REAL DOS CRIATIVOS — você está recebendo as imagens abaixo em alta qualidade. Analise cada uma de verdade: cor dominante, produto visível, texto na imagem, layout, contraste, legibilidade no mobile. NUNCA invente análise. Se uma imagem estiver ilegível, diga exatamente isso. Quando opinar sobre qualidade ou desempenho, cite elementos visuais específicos que você está vendo (ex: "fundo branco com produto centralizado", "texto amarelo na parte inferior", "foto de close no produto"). Criativos enviados:]\n${creativesWithImages.map((c, i) => `${i + 1}. [ID:${c.id}] ${c.name}`).join("\n")}`,
         },
         ...creativesWithImages.map(c => ({
           type: "image_url",
