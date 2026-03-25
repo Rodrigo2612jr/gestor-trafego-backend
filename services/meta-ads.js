@@ -239,7 +239,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const OBJECTIVE_TO_GOAL = {
     OUTCOME_LEADS:      { optimization_goal: "LEAD_GENERATION",      billing_event: "IMPRESSIONS" },
     OUTCOME_SALES:      { optimization_goal: "OFFSITE_CONVERSIONS",  billing_event: "IMPRESSIONS" },
-    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "IMPRESSIONS" },
+    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "LINK_CLICKS" },
     OUTCOME_AWARENESS:  { optimization_goal: "REACH",                billing_event: "IMPRESSIONS" },
     OUTCOME_ENGAGEMENT: { optimization_goal: "POST_ENGAGEMENT",      billing_event: "IMPRESSIONS" },
     OUTCOME_APP_PROMOTION: { optimization_goal: "APP_INSTALLS",      billing_event: "IMPRESSIONS" },
@@ -268,10 +268,10 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     genders: genderArr,
     geo_locations: geoLocations,
     targeting_automation: { advantage_audience: 0 }, // obrigatório nessa conta Meta
-    // Sempre inclui Facebook + Instagram com todos os posicionamentos principais
+    // Sempre inclui Facebook + Instagram (posicionamentos principais, sem right_hand_column que tem restrições)
     publisher_platforms: ["facebook", "instagram"],
-    facebook_positions: ["feed", "story", "reels", "right_hand_column"],
-    instagram_positions: ["stream", "story", "reels", "explore"],
+    facebook_positions: ["feed", "story", "reels"],
+    instagram_positions: ["stream", "story", "reels"],
   };
 
   // Resolve interest names → IDs reais da Meta
