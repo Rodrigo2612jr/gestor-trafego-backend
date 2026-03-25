@@ -266,11 +266,12 @@ router.post("/", async (req, res) => {
     return `• [ID:${c.id}${metaId ? ` | MetaID:${metaId}` : ""}] ${c.name} (${c.channel}) — Status: ${c.status} | ROAS: ${c.roas} | CPA: ${c.cpa} | CTR: ${c.ctr} | Budget: ${c.budget} | Gasto: ${c.spend} | Conv: ${c.conv}`;
   }).join("\n");
 
-  const adsetsSummary = adsets.slice(0, 30).map(a => {
-    return `• [AdSetID:${a.id}${a.meta_adset_id ? ` | MetaAdSetID:${a.meta_adset_id}` : " | MetaAdSetID:null"}] ${a.name} → CampanhaID:${a.campaign_id}`;
+  const adsetsSummary = adsets.slice(0, 40).map(a => {
+    const metaId = a.external_id?.startsWith("meta_") ? a.external_id.replace("meta_", "") : null;
+    return `• [AdSetID:${a.id}${metaId ? ` | MetaAdSetID:${metaId}` : " | MetaAdSetID:null"}] ${a.name} → CampanhaID:${a.campaign_id}`;
   }).join("\n");
 
-  const adsSummary = ads.slice(0, 50).map(a => {
+  const adsSummary = ads.slice(0, 60).map(a => {
     const metaAdId = a.external_id?.startsWith("meta_") ? a.external_id.replace("meta_", "") : null;
     return `• [AdID:${a.id}${metaAdId ? ` | MetaAdID:${metaAdId}` : ""}] ${a.name} → AdSetID:${a.adset_id}`;
   }).join("\n");
