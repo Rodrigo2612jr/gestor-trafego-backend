@@ -1,5 +1,5 @@
 {
-  "sha": "b2bdd46",
-  "message": "feat: list_pixels_from_meta + retry page_id quando pixel inválido",
-  "deployedAt": "2026-03-25T19:52:22.458Z"
+  "sha": "55ec30c",
+  "message": "fix: OUTCOME_LEADS usa OFFSITE_CONVERSIONS para suportar pixel em landing page",
+  "deployedAt": "2026-03-25T22:18:15.349Z"
 }
