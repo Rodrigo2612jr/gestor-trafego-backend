@@ -1,5 +1,5 @@
 {
-  "sha": "a4356c6",
-  "message": "feat: listAdSetsFromMeta aceita ID interno e campanhas ordenadas por ID desc",
-  "deployedAt": "2026-03-25T19:11:59.500Z"
+  "sha": "8b394ac",
+  "message": "fix: retry adset sem promoted_object se pixel_id inválido",
+  "deployedAt": "2026-03-25T19:21:07.461Z"
 }
