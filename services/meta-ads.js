@@ -564,4 +564,14 @@ async function updateCampaignStatus(userId, metaCampaignId, status) {
   return data;
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, createAd, updateAd };
+// ─── List AdSets from Meta API for a campaign ───
+async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const res = await fetch(`${API}/${meta_campaign_id}/adsets?fields=id,name,status,daily_budget,targeting&access_token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
+  return (data.data || []).map(a => ({ meta_adset_id: a.id, name: a.name, status: a.status, daily_budget: a.daily_budget }));
+}
+
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, createAd, updateAd, listAdSetsFromMeta };

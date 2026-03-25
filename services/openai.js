@@ -181,6 +181,20 @@ const LEO_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "list_adsets_from_meta",
+      description: "Busca direto na Meta API os AdSets de uma campanha com os MetaAdSetIDs reais. Use quando precisar dos IDs dos conjuntos de uma campanha publicada no Meta.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_campaign_id: { type: "string", description: "ID da campanha no Meta (ex: '120242...')" },
+        },
+        required: ["meta_campaign_id"],
+      },
+    },
+  },
 ];
 
 // ─── Chat completion with full context and tool use ───
