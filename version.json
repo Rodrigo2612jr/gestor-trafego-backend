@@ -1,5 +1,5 @@
 {
-  "sha": "8b394ac",
-  "message": "fix: retry adset sem promoted_object se pixel_id inválido",
-  "deployedAt": "2026-03-25T19:21:07.461Z"
+  "sha": "6da09a7",
+  "message": "feat: update_adset para corrigir pixel + Leo proibido de filtrar criativos",
+  "deployedAt": "2026-03-25T19:44:08.203Z"
 }
