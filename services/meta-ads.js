@@ -9,7 +9,7 @@ function getAdAccountId(userId) {
   return tok?.ad_account_id || process.env.META_AD_ACCOUNT_ID || null;
 }
 
-// Busca o Page ID real da conta do usuário na Meta
+// Busca o Page ID e Instagram Actor ID da conta do usuário na Meta
 async function getPageId(token) {
   if (process.env.META_PAGE_ID) return process.env.META_PAGE_ID.trim();
   try {
@@ -21,6 +21,23 @@ async function getPageId(token) {
     }
   } catch (e) {
     console.error("[Meta Ad] Erro ao buscar page_id:", e.message);
+  }
+  return null;
+}
+
+// Busca o Instagram Business Account ID vinculado à página
+async function getInstagramActorId(token, pageId) {
+  if (process.env.META_INSTAGRAM_ACTOR_ID) return process.env.META_INSTAGRAM_ACTOR_ID.trim();
+  if (!pageId) return null;
+  try {
+    const res = await fetch(`${API}/${pageId}?fields=instagram_business_account&access_token=${encodeURIComponent(token)}`);
+    const data = await res.json();
+    if (data.instagram_business_account?.id) {
+      console.log("[Meta Ad] Instagram actor ID auto-detectado:", data.instagram_business_account.id);
+      return data.instagram_business_account.id;
+    }
+  } catch (e) {
+    console.error("[Meta Ad] Erro ao buscar instagram_actor_id:", e.message);
   }
   return null;
 }
@@ -369,14 +386,17 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   if (!imageHash) throw new Error("Nenhuma imagem disponível para o criativo. Forneça um creative_id com imagem válida.");
   linkData.image_hash = imageHash;
 
+  const instagramActorId = await getInstagramActorId(token, pageId);
+
   const objectStorySpec = {
     page_id: pageId,
     link_data: linkData,
   };
+  if (instagramActorId) objectStorySpec.instagram_actor_id = instagramActorId;
 
   // 1. Criar criativo no Meta
   const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
-  console.log("[Meta Ad] page_id:", pageId, "| image_hash:", imageHash);
+  console.log("[Meta Ad] page_id:", pageId, "| instagram_actor_id:", instagramActorId || "não encontrado", "| image_hash:", imageHash);
   const creativeRes = await fetch(
     `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(creativePayload) }
