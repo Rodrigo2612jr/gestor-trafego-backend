@@ -392,7 +392,7 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
     page_id: pageId,
     link_data: linkData,
   };
-  if (instagramActorId) objectStorySpec.instagram_user_id = instagramActorId;
+  // instagram_user_id removido — placements do adset já garantem entrega no Instagram
 
   // 1. Criar criativo no Meta
   const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
