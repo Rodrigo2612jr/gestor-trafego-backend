@@ -1,5 +1,5 @@
 {
-  "sha": "6da09a7",
-  "message": "feat: update_adset para corrigir pixel + Leo proibido de filtrar criativos",
-  "deployedAt": "2026-03-25T19:44:08.203Z"
+  "sha": "b2bdd46",
+  "message": "feat: list_pixels_from_meta + retry page_id quando pixel inválido",
+  "deployedAt": "2026-03-25T19:52:22.458Z"
 }
