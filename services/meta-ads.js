@@ -386,17 +386,14 @@ async function createAd(userId, { meta_adset_id, name, headline, primary_text, c
   if (!imageHash) throw new Error("Nenhuma imagem disponível para o criativo. Forneça um creative_id com imagem válida.");
   linkData.image_hash = imageHash;
 
-  const instagramActorId = await getInstagramActorId(token, pageId);
-
   const objectStorySpec = {
     page_id: pageId,
     link_data: linkData,
   };
-  if (instagramActorId) objectStorySpec.instagram_actor_id = instagramActorId;
 
   // 1. Criar criativo no Meta
   const creativePayload = { name: `Creative: ${name}`, object_story_spec: objectStorySpec };
-  console.log("[Meta Ad] page_id:", pageId, "| instagram_actor_id:", instagramActorId || "não encontrado", "| image_hash:", imageHash);
+  console.log("[Meta Ad] page_id:", pageId, "| image_hash:", imageHash);
   const creativeRes = await fetch(
     `${API}/act_${adAccountId}/adcreatives?access_token=${encodeURIComponent(token)}`,
     { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(creativePayload) }
