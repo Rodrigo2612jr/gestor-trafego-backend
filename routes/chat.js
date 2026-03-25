@@ -1,7 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
-const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta } = require("../services/meta-ads");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -224,6 +224,15 @@ async function executeToolCall(toolCall, userId) {
       try {
         const adsets = await listAdSetsFromMeta(userId, args);
         return JSON.stringify({ success: true, adsets, count: adsets.length });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "list_pixels_from_meta": {
+      try {
+        const pixels = await listPixelsFromMeta(userId);
+        return JSON.stringify({ success: true, pixels, count: pixels.length });
       } catch (err) {
         return JSON.stringify({ success: false, error: err.message });
       }

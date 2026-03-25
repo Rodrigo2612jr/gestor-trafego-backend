@@ -339,9 +339,18 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 
   let data = await postAdSet(body);
 
-  // Se falhou por pixel inválido, tenta sem promoted_object
+  // Se falhou por pixel inválido, tenta com page_id
   if (data.error && data.error.message?.includes("promoted_object[pixel_id]")) {
-    console.warn("[Meta AdSet] Pixel inválido — retentando sem promoted_object");
+    console.warn("[Meta AdSet] Pixel inválido — tentando com page_id");
+    delete body.promoted_object;
+    const pageIdFallback = await getPageId(token);
+    if (pageIdFallback) body.promoted_object = { page_id: pageIdFallback };
+    data = await postAdSet(body);
+  }
+
+  // Se ainda falhou por promoted_object, tenta sem ele
+  if (data.error && (data.error.message?.includes("promoted_object") || JSON.stringify(data.error).includes("1839685"))) {
+    console.warn("[Meta AdSet] promoted_object rejeitado — retentando sem ele");
     delete body.promoted_object;
     data = await postAdSet(body);
   }
@@ -588,13 +597,42 @@ async function updateAdSet(userId, { meta_adset_id, pixel_id, custom_event_type,
 
   console.log("[Meta AdSet Update] Payload:", JSON.stringify(body, null, 2));
 
-  const res = await fetch(
-    `${API}/${meta_adset_id}?access_token=${encodeURIComponent(token)}`,
-    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
-  );
-  const data = await res.json();
+  async function patchAdSet(payload) {
+    const r = await fetch(
+      `${API}/${meta_adset_id}?access_token=${encodeURIComponent(token)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+    );
+    return r.json();
+  }
+
+  let data = await patchAdSet(body);
+
+  // Se pixel falhou, tenta com page_id
+  if (data.error && data.error.message?.includes("promoted_object[pixel_id]")) {
+    console.warn("[Meta AdSet Update] Pixel inválido — tentando com page_id");
+    delete body.promoted_object;
+    const pageIdFallback = await getPageId(token);
+    if (pageIdFallback) body.promoted_object = { page_id: pageIdFallback };
+    data = await patchAdSet(body);
+  }
+
   if (data.error) throw new Error(`Meta erro ao atualizar adset: ${data.error.message}`);
   return { success: true, meta_adset_id };
+}
+
+// ─── List Pixels from Meta ad account ───
+async function listPixelsFromMeta(userId) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
+
+  const res = await fetch(
+    `${API}/act_${adAccountId}/adspixels?fields=id,name,creation_time&access_token=${encodeURIComponent(token)}`
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta erro ao buscar pixels: ${data.error.message}`);
+  return (data.data || []).map(p => ({ pixel_id: p.id, name: p.name || "sem nome" }));
 }
 
 // ─── List AdSets from Meta API for a campaign ───
@@ -617,4 +655,4 @@ async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
   return (data.data || []).map(a => ({ meta_adset_id: a.id, name: a.name, status: a.status, daily_budget: a.daily_budget }));
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta };
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta };

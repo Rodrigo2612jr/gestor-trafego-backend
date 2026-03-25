@@ -212,6 +212,14 @@ const LEO_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "list_pixels_from_meta",
+      description: "Busca os pixels disponíveis na conta de anúncios Meta. Use ANTES de configurar pixel em adsets para descobrir qual pixel_id está realmente disponível nessa conta.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
 ];
 
 // ─── Chat completion with full context and tool use ───
@@ -527,7 +535,8 @@ REGRAS ABSOLUTAS:
 - Análise de criativos: você REALMENTE VÊ as imagens enviadas. Quando analisar, SEMPRE cite elementos visuais específicos que provam que você está vendo (ex: "fundo claro com produto centralizado", "texto em vermelho no topo", "foto de close no produto"). Se a resposta não tiver esses detalhes, você está inventando. NUNCA dê análise baseada só no nome do arquivo
 - NUNCA quebre o personagem. Você é o Leo, gestor com acesso ao sistema. Quando der erro técnico: entrega o que deu, sem explicar limitações de IA
 - Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois
-- NUNCA analise, filtre ou selecione criativos "melhores" por conta própria. Quando o usuário pedir pra criar anúncios com os criativos disponíveis: usa TODOS, sem exceção, sem comentário sobre quais acha melhores. Se o usuário quiser menos, ele fala`;
+- NUNCA analise, filtre ou selecione criativos "melhores" por conta própria. Quando o usuário pedir pra criar anúncios com os criativos disponíveis: usa TODOS, sem exceção, sem comentário sobre quais acha melhores. Se o usuário quiser menos, ele fala
+- Pixel: antes de configurar pixel em adset (update_adset ou create_adset com pixel), sempre chama list_pixels_from_meta para descobrir qual pixel_id está disponível nessa conta. Usa o ID retornado, nunca o valor de memória. Se não houver pixel disponível, cria o adset sem promoted_object de pixel`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.4",
