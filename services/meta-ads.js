@@ -441,10 +441,11 @@ async function createCampaign(userId, { name, objective, status, budget }) {
     objective: metaObjective,
     status: metaStatus,
     special_ad_categories: [],
-    bid_strategy: "LOWEST_COST_WITHOUT_CAP",
   };
+  // bid_strategy e daily_budget só para CBO (quando há budget na campanha)
   if (dailyBudgetCents) {
     body.daily_budget = dailyBudgetCents;
+    body.bid_strategy = "LOWEST_COST_WITHOUT_CAP";
   }
 
   const res = await fetch(
