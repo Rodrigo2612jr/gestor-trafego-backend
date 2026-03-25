@@ -568,7 +568,17 @@ async function updateCampaignStatus(userId, metaCampaignId, status) {
 async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
   const token = getToken(userId);
   if (!token) throw new Error("Meta não está conectado");
-  const res = await fetch(`${API}/${meta_campaign_id}/adsets?fields=id,name,status,daily_budget,targeting&access_token=${encodeURIComponent(token)}`);
+
+  // Se for ID interno curto (ex: "86"), busca o MetaID no banco
+  let realMetaId = meta_campaign_id;
+  if (meta_campaign_id && String(meta_campaign_id).length < 10) {
+    const db = require("../db/database");
+    const camp = db.findOne("campaigns", c => c.id === parseInt(meta_campaign_id));
+    if (camp?.external_id?.startsWith("meta_")) realMetaId = camp.external_id.replace("meta_", "");
+    else throw new Error(`MetaCampaignID não encontrado para campanha interna ${meta_campaign_id} — verifique se ela foi publicada no Meta`);
+  }
+
+  const res = await fetch(`${API}/${realMetaId}/adsets?fields=id,name,status,daily_budget&access_token=${encodeURIComponent(token)}`);
   const data = await res.json();
   if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
   return (data.data || []).map(a => ({ meta_adset_id: a.id, name: a.name, status: a.status, daily_budget: a.daily_budget }));

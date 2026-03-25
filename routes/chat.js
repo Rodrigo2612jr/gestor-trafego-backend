@@ -270,17 +270,21 @@ router.post("/", async (req, res) => {
   const alerts = findAll("alerts", r => r.user_id === req.userId);
   const creatives = findAll("creatives", r => r.user_id === req.userId);
 
-  const campaignSummary = campaigns.slice(0, 10).map(c => {
+  const campaignsSorted = [...campaigns].sort((a, b) => b.id - a.id);
+  const adsetsSorted = [...adsets].sort((a, b) => b.id - a.id);
+  const adsSorted = [...ads].sort((a, b) => b.id - a.id);
+
+  const campaignSummary = campaignsSorted.slice(0, 20).map(c => {
     const metaId = c.external_id?.startsWith("meta_") ? c.external_id.replace("meta_", "") : null;
-    return `• [ID:${c.id}${metaId ? ` | MetaID:${metaId}` : ""}] ${c.name} (${c.channel}) — Status: ${c.status} | ROAS: ${c.roas} | CPA: ${c.cpa} | CTR: ${c.ctr} | Budget: ${c.budget} | Gasto: ${c.spend} | Conv: ${c.conv}`;
+    return `• [ID:${c.id}${metaId ? ` | MetaID:${metaId}` : " | MetaID:null"}] ${c.name} (${c.channel}) — Status: ${c.status}`;
   }).join("\n");
 
-  const adsetsSummary = adsets.slice(0, 40).map(a => {
+  const adsetsSummary = adsetsSorted.slice(0, 50).map(a => {
     const metaId = a.external_id?.startsWith("meta_") ? a.external_id.replace("meta_", "") : null;
     return `• [AdSetID:${a.id}${metaId ? ` | MetaAdSetID:${metaId}` : " | MetaAdSetID:null"}] ${a.name} → CampanhaID:${a.campaign_id}`;
   }).join("\n");
 
-  const adsSummary = ads.slice(0, 60).map(a => {
+  const adsSummary = adsSorted.slice(0, 60).map(a => {
     const metaAdId = a.external_id?.startsWith("meta_") ? a.external_id.replace("meta_", "") : null;
     return `• [AdID:${a.id}${metaAdId ? ` | MetaAdID:${metaAdId}` : ""}] ${a.name} → AdSetID:${a.adset_id}`;
   }).join("\n");
