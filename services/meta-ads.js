@@ -677,10 +677,19 @@ async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
     else throw new Error(`MetaCampaignID não encontrado para campanha interna ${meta_campaign_id} — verifique se ela foi publicada no Meta`);
   }
 
-  const res = await fetch(`${API}/${realMetaId}/adsets?fields=id,name,status,daily_budget&access_token=${encodeURIComponent(token)}`);
+  const res = await fetch(`${API}/${realMetaId}/adsets?fields=id,name,status,daily_budget,optimization_goal,billing_event,destination_type,promoted_object,targeting&access_token=${encodeURIComponent(token)}`);
   const data = await res.json();
   if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
-  return (data.data || []).map(a => ({ meta_adset_id: a.id, name: a.name, status: a.status, daily_budget: a.daily_budget }));
+  return (data.data || []).map(a => ({
+    meta_adset_id: a.id,
+    name: a.name,
+    status: a.status,
+    daily_budget: a.daily_budget,
+    optimization_goal: a.optimization_goal,
+    billing_event: a.billing_event,
+    destination_type: a.destination_type,
+    promoted_object: a.promoted_object,
+  }));
 }
 
 module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta };
