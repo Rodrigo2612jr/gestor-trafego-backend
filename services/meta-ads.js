@@ -255,12 +255,12 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 
   // Mapeia objetivo real da campanha → optimization_goal correto
   const OBJECTIVE_TO_GOAL = {
-    OUTCOME_LEADS:      { optimization_goal: "LEAD_GENERATION",      billing_event: "IMPRESSIONS" },
-    OUTCOME_SALES:      { optimization_goal: "OFFSITE_CONVERSIONS",  billing_event: "IMPRESSIONS" },
-    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",          billing_event: "LINK_CLICKS" },
-    OUTCOME_AWARENESS:  { optimization_goal: "REACH",                billing_event: "IMPRESSIONS" },
-    OUTCOME_ENGAGEMENT: { optimization_goal: "POST_ENGAGEMENT",      billing_event: "IMPRESSIONS" },
-    OUTCOME_APP_PROMOTION: { optimization_goal: "APP_INSTALLS",      billing_event: "IMPRESSIONS" },
+    OUTCOME_LEADS:      { optimization_goal: "OFFSITE_CONVERSIONS", billing_event: "IMPRESSIONS" },
+    OUTCOME_SALES:      { optimization_goal: "OFFSITE_CONVERSIONS", billing_event: "IMPRESSIONS" },
+    OUTCOME_TRAFFIC:    { optimization_goal: "LINK_CLICKS",         billing_event: "LINK_CLICKS" },
+    OUTCOME_AWARENESS:  { optimization_goal: "REACH",               billing_event: "IMPRESSIONS" },
+    OUTCOME_ENGAGEMENT: { optimization_goal: "POST_ENGAGEMENT",     billing_event: "IMPRESSIONS" },
+    OUTCOME_APP_PROMOTION: { optimization_goal: "APP_INSTALLS",     billing_event: "IMPRESSIONS" },
   };
 
   const goal = (campaignObjective && OBJECTIVE_TO_GOAL[campaignObjective])
