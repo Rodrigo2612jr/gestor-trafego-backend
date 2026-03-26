@@ -321,7 +321,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   // promoted_object e destination_type por objetivo
   const pixelId = process.env.META_PIXEL_ID || null;
   if (campaignObjective === "OUTCOME_LEADS") {
-    // destination_type já está na campanha — não duplicar no adset
+    body.destination_type = "WEBSITE"; // obrigatório também no adset
     if (pixelId) {
       body.promoted_object = { pixel_id: pixelId, custom_event_type: "LEAD" };
     } else {
@@ -363,15 +363,16 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     data = await postAdSet(body);
   }
 
-  // Se ainda falhou com page_id/promoted_object → tenta sem
-  if (data.error && body.promoted_object) {
+  // Se ainda falhou com page_id → tenta sem promoted_object SOMENTE se não for OUTCOME_LEADS
+  // OUTCOME_LEADS EXIGE promoted_object; removê-lo causa erro 1815430
+  if (data.error && body.promoted_object && campaignObjective !== "OUTCOME_LEADS") {
     console.warn("[Meta AdSet] promoted_object rejeitado — tentando sem ele");
     delete body.promoted_object;
     data = await postAdSet(body);
   }
 
-  // Se optimization_goal incompatível → tenta LINK_CLICKS
-  if (data.error && (JSON.stringify(data.error).includes("2490408") || JSON.stringify(data.error).includes("1885760") || data.error.message?.includes("meta de desempenho") || data.error.message?.includes("performance goal"))) {
+  // Se optimization_goal incompatível → tenta LINK_CLICKS (somente para não-LEADS)
+  if (data.error && campaignObjective !== "OUTCOME_LEADS" && (JSON.stringify(data.error).includes("2490408") || JSON.stringify(data.error).includes("1885760") || data.error.message?.includes("meta de desempenho") || data.error.message?.includes("performance goal"))) {
     console.warn("[Meta AdSet] Optimization goal incompat. — retentando com LINK_CLICKS");
     body.optimization_goal = "LINK_CLICKS";
     body.billing_event = "LINK_CLICKS";
