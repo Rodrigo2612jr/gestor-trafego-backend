@@ -353,10 +353,19 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   let data = await postAdSet(body);
   let pixelError = null;
 
-  // Se falhou e temos pixel no promoted_object → captura erro e tenta com page_id
+  // Se falhou e temos pixel no promoted_object
   if (data.error && body.promoted_object?.pixel_id) {
     pixelError = `code ${data.error.code}/${data.error.error_subcode || "?"}: ${data.error.error_user_msg || data.error.message}`;
-    console.warn("[Meta AdSet] Pixel falhou:", pixelError, "— tentando com page_id");
+    console.warn("[Meta AdSet] Pixel falhou:", pixelError);
+
+    // Para OUTCOME_LEADS, Meta exige pixel_id no promoted_object — lança erro direto
+    if (campaignObjective === "OUTCOME_LEADS") {
+      const e = data.error;
+      throw new Error(`Meta AdSet pixel rejeitado (code ${e.code}/${e.error_subcode || "?"}): ${e.error_user_msg || e.message} | pixel_id enviado: ${body.promoted_object.pixel_id}`);
+    }
+
+    // Para outros objetivos → fallback com page_id
+    console.warn("[Meta AdSet] Tentando com page_id");
     delete body.promoted_object;
     const pageIdFallback = await getPageId(token);
     if (pageIdFallback) body.promoted_object = { page_id: pageIdFallback };
