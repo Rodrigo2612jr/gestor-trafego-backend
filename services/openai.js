@@ -220,6 +220,35 @@ const LEO_TOOLS = [
       parameters: { type: "object", properties: {} },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "list_ads_from_meta",
+      description: "Busca os anúncios (ads) de uma campanha ou adset diretamente na Meta API, com MetaAdIDs e status. Use quando precisar listar anúncios, ver quais estão ativos ou inativos, ou ativar ads em lote.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_campaign_id: { type: "string", description: "ID interno ou Meta da campanha" },
+          meta_adset_id: { type: "string", description: "ID interno ou Meta do adset (opcional — filtra por adset)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_ad_status",
+      description: "Ativa ou pausa um anúncio específico no Meta. Use para ativar anúncios inativos/pausados em lote.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_ad_id: { type: "string", description: "Meta Ad ID do anúncio (ex: 120242885194430323)" },
+          status: { type: "string", enum: ["ACTIVE", "PAUSED"], description: "ACTIVE para ativar, PAUSED para pausar" },
+        },
+        required: ["meta_ad_id", "status"],
+      },
+    },
+  },
 ];
 
 // ─── Chat completion with full context and tool use ───

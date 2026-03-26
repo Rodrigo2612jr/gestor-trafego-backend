@@ -1,7 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
-const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta } = require("../services/meta-ads");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -239,6 +239,24 @@ async function executeToolCall(toolCall, userId) {
         return JSON.stringify({ success: true, pixels, count: pixels.length });
       } catch (err) {
         return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "list_ads_from_meta": {
+      try {
+        const ads = await listAdsFromMeta(userId, args);
+        return JSON.stringify({ success: true, ads, count: ads.length });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "update_ad_status": {
+      try {
+        const result = await updateAdStatus(userId, args);
+        return JSON.stringify({ success: true, ...result, message: `Anúncio ${args.meta_ad_id} ${args.status === "ACTIVE" ? "ativado" : "pausado"}.` });
+      } catch (err) {
+        return JSON.stringify({ success: false, meta_error: err.message });
       }
     }
 

@@ -738,4 +738,50 @@ async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
   }));
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta };
+// ─── List Ads from Meta API for a campaign or adset ───
+async function listAdsFromMeta(userId, { meta_campaign_id, meta_adset_id }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  let parentId = meta_adset_id || meta_campaign_id;
+  // Resolve ID interno curto para MetaID
+  if (parentId && String(parentId).length < 10) {
+    const db = require("../db/database");
+    if (meta_adset_id) {
+      const adset = db.findOne("adsets", a => a.id === parseInt(meta_adset_id));
+      if (adset?.meta_adset_id) parentId = adset.meta_adset_id;
+    } else {
+      const camp = db.findOne("campaigns", c => c.id === parseInt(meta_campaign_id));
+      if (camp?.external_id?.startsWith("meta_")) parentId = camp.external_id.replace("meta_", "");
+      else throw new Error(`MetaCampaignID não encontrado para campanha interna ${meta_campaign_id}`);
+    }
+  }
+
+  const res = await fetch(`${API}/${parentId}/ads?fields=id,name,status,adset_id&access_token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
+  return (data.data || []).map(a => ({
+    meta_ad_id: a.id,
+    name: a.name,
+    status: a.status,
+    meta_adset_id: a.adset_id,
+  }));
+}
+
+// ─── Update Ad status (ACTIVE / PAUSED) ───
+async function updateAdStatus(userId, { meta_ad_id, status }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  const metaStatus = status === "ACTIVE" || status === "Ativa" ? "ACTIVE" : "PAUSED";
+  const res = await fetch(`${API}/${meta_ad_id}?access_token=${encodeURIComponent(token)}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: metaStatus }),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta erro (${data.error.code}): ${data.error.message}`);
+  return { meta_ad_id, status: metaStatus, success: data.success };
+}
+
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus };
