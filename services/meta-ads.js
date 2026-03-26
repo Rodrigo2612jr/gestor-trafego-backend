@@ -131,14 +131,14 @@ async function fetchAudiences(userId) {
 // ─── Map objective string to Meta API objective ───
 function mapObjective(objective = "") {
   const o = objective.toLowerCase();
-  // Essa conta Meta aceita OUTCOME_TRAFFIC para landing page e conversões
-  // OUTCOME_SALES não funciona nessa conta (error 2490408)
-  if (o.includes("tráfego") || o.includes("trafego") || o.includes("traffic") || o.includes("lead") || o.includes("convers") || o.includes("venda") || o.includes("capturaç")) return "OUTCOME_TRAFFIC";
+  if (o.includes("lead") || o.includes("capturaç")) return "OUTCOME_LEADS";
+  if (o.includes("venda") || o.includes("convers")) return "OUTCOME_SALES";
+  if (o.includes("tráfego") || o.includes("trafego") || o.includes("traffic")) return "OUTCOME_TRAFFIC";
   if (o.includes("reconhec") || o.includes("awareness") || o.includes("alcance")) return "OUTCOME_AWARENESS";
   if (o.includes("engaj") || o.includes("engag")) return "OUTCOME_ENGAGEMENT";
   if (o.includes("formulário") || o.includes("form")) return "OUTCOME_LEADS";
   if (o.includes("app")) return "OUTCOME_APP_PROMOTION";
-  return "OUTCOME_TRAFFIC"; // default seguro para essa conta
+  return "OUTCOME_TRAFFIC"; // default seguro
 }
 
 // ─── Map optimization goal to Meta billing event ───
@@ -312,9 +312,14 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   // promoted_object e destination_type por objetivo
   const pixelId = process.env.META_PIXEL_ID || null;
   if (campaignObjective === "OUTCOME_LEADS") {
-    // OUTCOME_LEADS = formulário on-platform, usa page_id
-    const pageId = await getPageId(token);
-    if (pageId) body.promoted_object = { page_id: pageId };
+    // LEADS para landing page: destination_type WEBSITE + pixel + evento LEAD
+    body.destination_type = "WEBSITE";
+    if (pixelId) {
+      body.promoted_object = { pixel_id: pixelId, custom_event_type: "LEAD" };
+    } else {
+      const pageId = await getPageId(token);
+      if (pageId) body.promoted_object = { page_id: pageId };
+    }
   } else if (campaignObjective === "OUTCOME_SALES") {
     body.destination_type = "WEBSITE";
     if (pixelId) {
@@ -550,6 +555,10 @@ async function createCampaign(userId, { name, objective, status, budget }) {
     is_adset_budget_sharing_enabled: !dailyBudgetCents, // true = ABO, false = CBO
     bid_strategy: "LOWEST_COST_WITHOUT_CAP", // obrigatório em ambos ABO e CBO
   };
+  // OUTCOME_LEADS para landing page precisa de destination_type no nível da campanha
+  if (metaObjective === "OUTCOME_LEADS") {
+    body.destination_type = "WEBSITE";
+  }
   if (dailyBudgetCents) {
     body.daily_budget = dailyBudgetCents;
   }
