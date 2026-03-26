@@ -319,7 +319,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   };
 
   // promoted_object e destination_type por objetivo
-  const pixelId = process.env.META_PIXEL_ID || null;
+  const pixelId = process.env.META_PIXEL_ID?.trim() || null;
   if (campaignObjective === "OUTCOME_LEADS") {
     body.destination_type = "WEBSITE"; // obrigatório também no adset
     if (pixelId) {
