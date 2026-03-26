@@ -224,12 +224,13 @@ const LEO_TOOLS = [
     type: "function",
     function: {
       name: "list_ads_from_meta",
-      description: "Busca os anúncios (ads) de uma campanha ou adset diretamente na Meta API, com MetaAdIDs e status. Use quando precisar listar anúncios, ver quais estão ativos ou inativos, ou ativar ads em lote.",
+      description: "Busca os anúncios (ads) de uma campanha ou adset diretamente na Meta API, com MetaAdIDs e status. Suporta paginação automática (retorna todos, não só 25). Use com status='PAUSED' para listar apenas os inativos antes de ativar em lote.",
       parameters: {
         type: "object",
         properties: {
           meta_campaign_id: { type: "string", description: "ID interno ou Meta da campanha" },
           meta_adset_id: { type: "string", description: "ID interno ou Meta do adset (opcional — filtra por adset)" },
+          status: { type: "string", enum: ["ACTIVE", "PAUSED"], description: "Filtra por status. Use PAUSED para listar só os inativos." },
         },
       },
     },

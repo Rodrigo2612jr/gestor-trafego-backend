@@ -739,7 +739,7 @@ async function listAdSetsFromMeta(userId, { meta_campaign_id }) {
 }
 
 // ─── List Ads from Meta API for a campaign or adset ───
-async function listAdsFromMeta(userId, { meta_campaign_id, meta_adset_id }) {
+async function listAdsFromMeta(userId, { meta_campaign_id, meta_adset_id, status }) {
   const token = getToken(userId);
   if (!token) throw new Error("Meta não está conectado");
 
@@ -757,15 +757,26 @@ async function listAdsFromMeta(userId, { meta_campaign_id, meta_adset_id }) {
     }
   }
 
-  const res = await fetch(`${API}/${parentId}/ads?fields=id,name,status,adset_id&access_token=${encodeURIComponent(token)}`);
-  const data = await res.json();
-  if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
-  return (data.data || []).map(a => ({
+  // Busca com paginação para pegar todos os anúncios
+  const allAds = [];
+  let url = `${API}/${parentId}/ads?fields=id,name,status,adset_id&limit=100&access_token=${encodeURIComponent(token)}`;
+  while (url) {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
+    (data.data || []).forEach(a => allAds.push(a));
+    url = data.paging?.next || null;
+  }
+
+  const result = allAds.map(a => ({
     meta_ad_id: a.id,
     name: a.name,
     status: a.status,
     meta_adset_id: a.adset_id,
   }));
+
+  // Filtra por status se fornecido (ex: "PAUSED", "ACTIVE")
+  return status ? result.filter(a => a.status === status.toUpperCase()) : result;
 }
 
 // ─── Update Ad status (ACTIVE / PAUSED) ───
