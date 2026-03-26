@@ -1,5 +1,5 @@
 {
-  "sha": "d26e991",
-  "message": "fix: adset retry LINK_CLICKS se optimization_goal incompatível",
-  "deployedAt": "2026-03-26T15:23:23.005Z"
+  "sha": "d4a9388",
+  "message": "fix: OUTCOME_TRAFFIC como padrão para essa conta Meta",
+  "deployedAt": "2026-03-26T15:34:26.435Z"
 }
