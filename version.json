@@ -1,5 +1,5 @@
 {
-  "sha": "34f3ae5",
-  "message": "fix: leads via landing page usa OUTCOME_SALES não OUTCOME_LEADS",
-  "deployedAt": "2026-03-25T22:26:09.978Z"
+  "sha": "d26e991",
+  "message": "fix: adset retry LINK_CLICKS se optimization_goal incompatível",
+  "deployedAt": "2026-03-26T15:23:23.005Z"
 }
