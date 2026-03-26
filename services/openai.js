@@ -185,11 +185,12 @@ const LEO_TOOLS = [
     type: "function",
     function: {
       name: "update_adset",
-      description: "Atualiza um conjunto de anúncios existente no Meta — adiciona ou corrige pixel/objeto promovido. Use quando um adset foi criado sem promoted_object e precisa do pixel configurado.",
+      description: "Atualiza um conjunto de anúncios existente no Meta — muda orçamento diário, adiciona ou corrige pixel/objeto promovido. Use para alterar budget de adsets ou configurar pixel.",
       parameters: {
         type: "object",
         properties: {
           meta_adset_id: { type: "string", description: "ID do conjunto no Meta (ex: '120242...')" },
+          daily_budget: { type: "number", description: "Novo orçamento diário em BRL (ex: 37 para R$37)" },
           pixel_id: { type: "string", description: "ID do pixel Meta a vincular ao conjunto" },
           custom_event_type: { type: "string", enum: ["LEAD", "PURCHASE", "COMPLETE_REGISTRATION", "ADD_TO_CART"], description: "Evento do pixel (padrão: LEAD)" },
           destination_type: { type: "string", enum: ["WEBSITE", "ON_AD"], description: "Tipo de destino (padrão: WEBSITE)" },

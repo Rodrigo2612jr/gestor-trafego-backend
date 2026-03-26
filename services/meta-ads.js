@@ -658,8 +658,8 @@ async function updateCampaignStatus(userId, metaCampaignId, status) {
   return data;
 }
 
-// ─── Update AdSet in Meta (ex: adicionar promoted_object/pixel) ───
-async function updateAdSet(userId, { meta_adset_id, pixel_id, custom_event_type, destination_type }) {
+// ─── Update AdSet in Meta (ex: adicionar promoted_object/pixel, mudar orçamento) ───
+async function updateAdSet(userId, { meta_adset_id, pixel_id, custom_event_type, destination_type, daily_budget }) {
   const token = getToken(userId);
   if (!token) throw new Error("Meta não está conectado");
 
@@ -668,6 +668,7 @@ async function updateAdSet(userId, { meta_adset_id, pixel_id, custom_event_type,
     body.promoted_object = { pixel_id, custom_event_type: custom_event_type || "LEAD" };
   }
   if (destination_type) body.destination_type = destination_type;
+  if (daily_budget) body.daily_budget = Math.round(daily_budget * 100); // BRL → centavos
 
   console.log("[Meta AdSet Update] Payload:", JSON.stringify(body, null, 2));
 
