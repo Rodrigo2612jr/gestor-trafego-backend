@@ -321,8 +321,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   // promoted_object e destination_type por objetivo
   const pixelId = process.env.META_PIXEL_ID || null;
   if (campaignObjective === "OUTCOME_LEADS") {
-    // LEADS para landing page: destination_type WEBSITE + pixel + evento LEAD
-    body.destination_type = "WEBSITE";
+    // destination_type já está na campanha — não duplicar no adset
     if (pixelId) {
       body.promoted_object = { pixel_id: pixelId, custom_event_type: "LEAD" };
     } else {
@@ -352,8 +351,26 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   }
 
   let data = await postAdSet(body);
+  let pixelError = null;
 
-  // Se optimization_goal incompatível com objetivo da campanha, tenta LINK_CLICKS
+  // Se falhou e temos pixel no promoted_object → captura erro e tenta com page_id
+  if (data.error && body.promoted_object?.pixel_id) {
+    pixelError = `code ${data.error.code}/${data.error.error_subcode || "?"}: ${data.error.error_user_msg || data.error.message}`;
+    console.warn("[Meta AdSet] Pixel falhou:", pixelError, "— tentando com page_id");
+    delete body.promoted_object;
+    const pageIdFallback = await getPageId(token);
+    if (pageIdFallback) body.promoted_object = { page_id: pageIdFallback };
+    data = await postAdSet(body);
+  }
+
+  // Se ainda falhou com page_id/promoted_object → tenta sem
+  if (data.error && body.promoted_object) {
+    console.warn("[Meta AdSet] promoted_object rejeitado — tentando sem ele");
+    delete body.promoted_object;
+    data = await postAdSet(body);
+  }
+
+  // Se optimization_goal incompatível → tenta LINK_CLICKS
   if (data.error && (JSON.stringify(data.error).includes("2490408") || JSON.stringify(data.error).includes("1885760") || data.error.message?.includes("meta de desempenho") || data.error.message?.includes("performance goal"))) {
     console.warn("[Meta AdSet] Optimization goal incompat. — retentando com LINK_CLICKS");
     body.optimization_goal = "LINK_CLICKS";
@@ -363,32 +380,15 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     data = await postAdSet(body);
   }
 
-  // Se falhou por pixel inválido, tenta com page_id
-  if (data.error && data.error.message?.includes("promoted_object[pixel_id]")) {
-    console.warn("[Meta AdSet] Pixel inválido — tentando com page_id");
-    delete body.promoted_object;
-    const pageIdFallback = await getPageId(token);
-    if (pageIdFallback) body.promoted_object = { page_id: pageIdFallback };
-    data = await postAdSet(body);
-  }
-
-  // Se ainda falhou por promoted_object, tenta sem ele
-  if (data.error && (data.error.message?.includes("promoted_object") || JSON.stringify(data.error).includes("1839685"))) {
-    console.warn("[Meta AdSet] promoted_object rejeitado — retentando sem ele");
-    delete body.promoted_object;
-    data = await postAdSet(body);
-  }
-
   if (data.error) {
     const e = data.error;
     console.error("[Meta AdSet] Erro completo:", JSON.stringify(e, null, 2));
-    console.error("[Meta AdSet] Payload enviado:", JSON.stringify(body, null, 2));
     const blame = e.blame_field_specs?.map(b => b.join(".")).join(", ") || "";
     const userMsg = e.error_user_msg || e.error_user_title || "";
     throw new Error(`Meta AdSet erro (code ${e.code}/${e.error_subcode}${blame ? ` campo: ${blame}` : ""}): ${userMsg || e.message}`);
   }
 
-  return data;
+  return { ...data, pixel_warning: pixelError };
 }
 
 // ─── Create Ad in Meta ───

@@ -139,11 +139,13 @@ async function executeToolCall(toolCall, userId) {
     case "create_adset": {
       let metaAdsetId = null;
       let metaAdsetError = null;
+      let pixelWarning = null;
 
       if (args.meta_campaign_id) {
         try {
           const result = await metaCreateAdSet(userId, args);
           metaAdsetId = result.id;
+          pixelWarning = result.pixel_warning || null;
         } catch (err) {
           metaAdsetError = err.message;
           console.error("[Leo] Meta adset creation failed:", err.message);
@@ -161,18 +163,18 @@ async function executeToolCall(toolCall, userId) {
         genders: args.genders || "all",
         interests: args.interests || [],
         locations: args.locations || [],
-        placement: args.placement || "feed, stories, reels",
+        placement: args.placement || "feed_stories",
         status: args.status || "Pausada",
         external_id: metaAdsetId ? `meta_${metaAdsetId}` : null,
       });
 
       const msg = metaAdsetId
-        ? `Conjunto "${adset.name}" criado no Meta (ID: ${metaAdsetId})!`
+        ? `Conjunto "${adset.name}" criado no Meta (ID: ${metaAdsetId})!${pixelWarning ? ` AVISO PIXEL: ${pixelWarning}` : ""}`
         : metaAdsetError
           ? `Conjunto "${adset.name}" salvo no sistema. Meta: ${metaAdsetError}`
           : `Conjunto "${adset.name}" criado!`;
 
-      return JSON.stringify({ success: true, adset_id: adset.id, meta_adset_id: metaAdsetId, name: adset.name, message: msg });
+      return JSON.stringify({ success: true, adset_id: adset.id, meta_adset_id: metaAdsetId, name: adset.name, pixel_warning: pixelWarning, message: msg });
     }
 
     case "create_ad": {
