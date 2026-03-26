@@ -234,7 +234,7 @@ async function uploadImageToMeta(token, adAccountId, imageSource) {
 }
 
 // ─── Create Ad Set in Meta ───
-async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optimization_goal, age_min, age_max, genders, interests, locations, status }) {
+async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optimization_goal, age_min, age_max, genders, interests, locations, status, placement }) {
   const token = getToken(userId);
   if (!token) throw new Error("Meta não está conectado");
   const adAccountId = getAdAccountId(userId);
@@ -280,16 +280,25 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     }
   }
 
+  // Posicionamentos por placement
+  const PLACEMENTS = {
+    feed:         { fb: ["feed"],              ig: ["stream"] },
+    stories:      { fb: ["story"],             ig: ["story"] },
+    feed_stories: { fb: ["feed", "story"],     ig: ["stream", "story"] },
+    reels:        { fb: ["reels"],             ig: ["reels"] },
+    all:          { fb: ["feed", "story", "reels"], ig: ["stream", "story", "reels"] },
+  };
+  const pos = PLACEMENTS[placement] || PLACEMENTS.feed_stories; // padrão: feed + stories
+
   const targeting = {
     age_min: age_min || 18,
     age_max: age_max || 65,
     genders: genderArr,
     geo_locations: geoLocations,
     targeting_automation: { advantage_audience: 0 }, // obrigatório nessa conta Meta
-    // Facebook + Instagram — feed apenas (mínimo garantido pela Meta)
     publisher_platforms: ["facebook", "instagram"],
-    facebook_positions: ["feed"],
-    instagram_positions: ["stream"],
+    facebook_positions: pos.fb,
+    instagram_positions: pos.ig,
   };
 
   // Resolve interest names → IDs reais da Meta
