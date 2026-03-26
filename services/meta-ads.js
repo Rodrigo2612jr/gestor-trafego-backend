@@ -317,10 +317,9 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     const pageId = await getPageId(token);
     if (pageId) body.promoted_object = { page_id: pageId };
   } else if (campaignObjective === "OUTCOME_SALES") {
-    // OUTCOME_SALES = landing page com pixel (LEAD ou PURCHASE dependendo do negócio)
     body.destination_type = "WEBSITE";
     if (pixelId) {
-      body.promoted_object = { pixel_id: pixelId, custom_event_type: "LEAD" };
+      body.promoted_object = { pixel_id: pixelId, custom_event_type: "PURCHASE" };
     }
   }
 
@@ -340,6 +339,16 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   }
 
   let data = await postAdSet(body);
+
+  // Se optimization_goal incompatível com objetivo da campanha, tenta LINK_CLICKS
+  if (data.error && (JSON.stringify(data.error).includes("2490408") || JSON.stringify(data.error).includes("1885760") || data.error.message?.includes("meta de desempenho") || data.error.message?.includes("performance goal"))) {
+    console.warn("[Meta AdSet] Optimization goal incompat. — retentando com LINK_CLICKS");
+    body.optimization_goal = "LINK_CLICKS";
+    body.billing_event = "LINK_CLICKS";
+    delete body.promoted_object;
+    delete body.destination_type;
+    data = await postAdSet(body);
+  }
 
   // Se falhou por pixel inválido, tenta com page_id
   if (data.error && data.error.message?.includes("promoted_object[pixel_id]")) {
