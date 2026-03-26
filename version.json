@@ -1,5 +1,5 @@
 {
-  "sha": "8513f45",
-  "message": "fix: retry pixel captura erro exato + reporta pixel_warning ao Leo",
-  "deployedAt": "2026-03-26T17:47:50.444Z"
+  "sha": "6a4b79e",
+  "message": "feat: listAdSetsFromMeta retorna parametros tecnicos completos",
+  "deployedAt": "2026-03-26T17:54:57.909Z"
 }
