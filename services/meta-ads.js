@@ -131,15 +131,14 @@ async function fetchAudiences(userId) {
 // ─── Map objective string to Meta API objective ───
 function mapObjective(objective = "") {
   const o = objective.toLowerCase();
-  // Leads via landing page/site = OUTCOME_SALES (OFFSITE_CONVERSIONS + pixel)
-  // OUTCOME_LEADS só funciona com formulários instantâneos on-platform (sem pixel de site)
-  if (o.includes("venda") || o.includes("convers") || o.includes("lead") || o.includes("capturaç")) return "OUTCOME_SALES";
-  if (o.includes("tráfego") || o.includes("trafego") || o.includes("traffic")) return "OUTCOME_TRAFFIC";
+  // Essa conta Meta aceita OUTCOME_TRAFFIC para landing page e conversões
+  // OUTCOME_SALES não funciona nessa conta (error 2490408)
+  if (o.includes("tráfego") || o.includes("trafego") || o.includes("traffic") || o.includes("lead") || o.includes("convers") || o.includes("venda") || o.includes("capturaç")) return "OUTCOME_TRAFFIC";
   if (o.includes("reconhec") || o.includes("awareness") || o.includes("alcance")) return "OUTCOME_AWARENESS";
   if (o.includes("engaj") || o.includes("engag")) return "OUTCOME_ENGAGEMENT";
-  if (o.includes("formulário") || o.includes("form") || o.includes("lead form")) return "OUTCOME_LEADS";
+  if (o.includes("formulário") || o.includes("form")) return "OUTCOME_LEADS";
   if (o.includes("app")) return "OUTCOME_APP_PROMOTION";
-  return "OUTCOME_SALES"; // default
+  return "OUTCOME_TRAFFIC"; // default seguro para essa conta
 }
 
 // ─── Map optimization goal to Meta billing event ───
