@@ -240,18 +240,54 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
   const adAccountId = getAdAccountId(userId);
   if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
 
+  // Resolve ID interno (ex: "95") para Meta Campaign ID real
+  let realMetaCampaignId = meta_campaign_id;
+  if (meta_campaign_id && String(meta_campaign_id).length < 10) {
+    const db = require("../db/database");
+    const camp = db.findOne("campaigns", c => c.id === parseInt(meta_campaign_id));
+    if (camp?.external_id?.startsWith("meta_")) {
+      realMetaCampaignId = camp.external_id.replace("meta_", "");
+      console.log("[Meta AdSet] ID interno", meta_campaign_id, "→ Meta ID", realMetaCampaignId);
+    }
+  }
+
   // Busca campanha na Meta para pegar objetivo real e verificar CBO
   let campaignHasBudget = false;
   let campaignObjective = null;
   try {
     const campRes = await fetch(
-      `${API}/${meta_campaign_id}?fields=daily_budget,lifetime_budget,objective&access_token=${encodeURIComponent(token)}`
+      `${API}/${realMetaCampaignId}?fields=daily_budget,lifetime_budget,objective&access_token=${encodeURIComponent(token)}`
     );
     const campData = await campRes.json();
-    campaignHasBudget = !!(campData.daily_budget || campData.lifetime_budget);
-    campaignObjective = campData.objective || null;
-    console.log("[Meta AdSet] Campanha objetivo:", campaignObjective, "| CBO:", campaignHasBudget);
-  } catch { /* assume sem CBO */ }
+    if (campData.error) {
+      console.warn("[Meta AdSet] Erro ao buscar campanha na Meta:", campData.error.message, "— tentando DB local");
+    } else {
+      campaignHasBudget = !!(campData.daily_budget || campData.lifetime_budget);
+      campaignObjective = campData.objective || null;
+    }
+    console.log("[Meta AdSet] Campanha objetivo (Meta):", campaignObjective, "| CBO:", campaignHasBudget);
+  } catch (err) {
+    console.warn("[Meta AdSet] Falha ao buscar campanha na Meta:", err.message);
+  }
+
+  // Fallback: busca objetivo no DB local se a Meta não retornou
+  if (!campaignObjective) {
+    try {
+      const db = require("../db/database");
+      const localCamp = db.findOne("campaigns", c => {
+        const extId = c.external_id || "";
+        return (
+          extId === `meta_${realMetaCampaignId}` ||
+          extId === realMetaCampaignId ||
+          c.id === parseInt(meta_campaign_id)
+        );
+      });
+      if (localCamp?.objective) {
+        campaignObjective = mapObjective(localCamp.objective);
+        console.log("[Meta AdSet] Campanha objetivo (DB local):", campaignObjective, "← from:", localCamp.objective);
+      }
+    } catch { /* ignora */ }
+  }
 
   // Mapeia objetivo real da campanha → optimization_goal correto
   const OBJECTIVE_TO_GOAL = {
@@ -311,7 +347,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
 
   const body = {
     name,
-    campaign_id: meta_campaign_id,
+    campaign_id: realMetaCampaignId,
     optimization_goal: goal.optimization_goal,
     billing_event: goal.billing_event,
     targeting,
