@@ -1,5 +1,5 @@
 {
-  "sha": "034688d",
-  "message": "fix: Leo ignora prints/screenshots como criativo de anúncio",
-  "deployedAt": "2026-03-26T16:01:18.919Z"
+  "sha": "afb12b0",
+  "message": "fix: Leo para de tentar configurar pixel em adsets de tráfego",
+  "deployedAt": "2026-03-26T17:27:21.027Z"
 }
