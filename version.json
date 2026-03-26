@@ -1,5 +1,5 @@
 {
-  "sha": "afb12b0",
-  "message": "fix: Leo para de tentar configurar pixel em adsets de tráfego",
-  "deployedAt": "2026-03-26T17:27:21.027Z"
+  "sha": "afd63da",
+  "message": "fix: OUTCOME_LEADS destination_type WEBSITE + pixel na criação",
+  "deployedAt": "2026-03-26T17:31:52.418Z"
 }
