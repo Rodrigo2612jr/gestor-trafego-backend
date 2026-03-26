@@ -434,7 +434,7 @@ async function createAdSet(userId, { meta_campaign_id, name, daily_budget, optim
     throw new Error(`Meta AdSet erro (code ${e.code}/${e.error_subcode}${blame ? ` campo: ${blame}` : ""}): ${userMsg || e.message}`);
   }
 
-  return { ...data, pixel_warning: pixelError };
+  return { ...data, pixel_warning: pixelError, actual_optimization_goal: body.optimization_goal };
 }
 
 // ─── Create Ad in Meta ───

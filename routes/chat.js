@@ -140,12 +140,14 @@ async function executeToolCall(toolCall, userId) {
       let metaAdsetId = null;
       let metaAdsetError = null;
       let pixelWarning = null;
+      let actualOptimizationGoal = args.optimization_goal; // será sobrescrito pelo retorno real
 
       if (args.meta_campaign_id) {
         try {
           const result = await metaCreateAdSet(userId, args);
           metaAdsetId = result.id;
           pixelWarning = result.pixel_warning || null;
+          if (result.actual_optimization_goal) actualOptimizationGoal = result.actual_optimization_goal;
         } catch (err) {
           metaAdsetError = err.message;
           console.error("[Leo] Meta adset creation failed:", err.message);
@@ -157,7 +159,7 @@ async function executeToolCall(toolCall, userId) {
         campaign_id: args.campaign_id,
         name: args.name,
         daily_budget: args.daily_budget,
-        optimization_goal: args.optimization_goal,
+        optimization_goal: actualOptimizationGoal,
         age_min: args.age_min || 18,
         age_max: args.age_max || 65,
         genders: args.genders || "all",
@@ -169,12 +171,12 @@ async function executeToolCall(toolCall, userId) {
       });
 
       const msg = metaAdsetId
-        ? `Conjunto "${adset.name}" criado no Meta (ID: ${metaAdsetId})!${pixelWarning ? ` AVISO PIXEL: ${pixelWarning}` : ""}`
+        ? `Conjunto "${adset.name}" criado no Meta (ID: ${metaAdsetId})! Otimização: ${actualOptimizationGoal}${pixelWarning ? ` AVISO PIXEL: ${pixelWarning}` : ""}`
         : metaAdsetError
           ? `Conjunto "${adset.name}" salvo no sistema. Meta: ${metaAdsetError}`
           : `Conjunto "${adset.name}" criado!`;
 
-      return JSON.stringify({ success: true, adset_id: adset.id, meta_adset_id: metaAdsetId, name: adset.name, pixel_warning: pixelWarning, message: msg });
+      return JSON.stringify({ success: true, adset_id: adset.id, meta_adset_id: metaAdsetId, name: adset.name, optimization_goal: actualOptimizationGoal, pixel_warning: pixelWarning, message: msg });
     }
 
     case "create_ad": {
