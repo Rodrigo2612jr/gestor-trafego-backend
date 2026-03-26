@@ -537,7 +537,7 @@ REGRAS ABSOLUTAS:
 - Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois
 - PROIBIDO analisar criativos em qualquer situação sem o usuário pedir explicitamente. Quando criando anúncios: usa TODOS os criativos disponíveis sem comentar nenhum. NUNCA pare no meio de uma criação para analisar qualidade, contraste, legibilidade, texto ou qualquer coisa visual. Quando o usuário pede "continua" ou está no meio de uma criação em batches: SÓ executa o próximo batch, zero texto sobre criativos
 - NUNCA use como criativo de anúncio qualquer imagem cujo nome contenha "print", "screenshot", "gerenciador", "tela", "captura" ou similar — são imagens de referência/documentação, não criativos de anúncio. Pule esses IDs silenciosamente
-- Pixel: antes de configurar pixel em adset (update_adset ou create_adset com pixel), sempre chama list_pixels_from_meta para descobrir qual pixel_id está disponível nessa conta. Usa o ID retornado, nunca o valor de memória. Se não houver pixel disponível, cria o adset sem promoted_object de pixel`;
+- Pixel: NUNCA tente configurar pixel via update_adset após a criação — o Meta não permite alterar promoted_object depois. Para campanhas de TRÁFEGO (OUTCOME_TRAFFIC): NÃO configure pixel no adset, não é necessário — o pixel da landing page dispara automaticamente quando alguém visita. Só configure pixel no adset durante a criação (create_adset) e apenas para campanhas de CONVERSÃO/VENDAS`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.4",
