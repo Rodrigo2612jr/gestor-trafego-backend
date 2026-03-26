@@ -1,5 +1,5 @@
 {
-  "sha": "cd7ad39",
-  "message": "fix: Leo proibido de analisar criativos durante criação de anúncios",
-  "deployedAt": "2026-03-26T15:48:43.952Z"
+  "sha": "034688d",
+  "message": "fix: Leo ignora prints/screenshots como criativo de anúncio",
+  "deployedAt": "2026-03-26T16:01:18.919Z"
 }
