@@ -42,13 +42,13 @@ router.get("/", async (req, res) => {
     return res.json({
       kpis: [
         { label: "Investimento Total", value: "R$ 0", change: 0 },
-        { label: "ROAS Médio", value: "0.0x", change: 0 },
-        { label: "CPA Médio", value: "R$ 0,00", change: 0 },
+        { label: "Leads", value: "0", change: 0 },
+        { label: "Custo por Lead", value: "R$ 0,00", change: 0 },
         { label: "CTR Médio", value: "0.0%", change: 0 },
-        { label: "Conversões", value: "0", change: 0 },
-        { label: "Campanhas Ativas", value: "0", change: 0 },
         { label: "Impressões", value: "0", change: 0 },
-        { label: "Receita Est.", value: "R$ 0", change: 0 },
+        { label: "Campanhas Ativas", value: "0", change: 0 },
+        { label: "CPA Médio", value: "R$ 0,00", change: 0 },
+        { label: "ROAS Médio", value: "0.0x", change: 0 },
       ],
       chartData: [], pieData: [], funnelData: [],
       insights: [{ type: "info", text: "Conecte Meta Ads ou Google Ads para ver dados reais.", priority: "Alta" }],
@@ -79,6 +79,21 @@ router.get("/", async (req, res) => {
   const metaConv = purchases ? parseInt(purchases.value) : 0;
   const convValueObj = actionValues.find(a => a.action_type === "offsite_conversion.fb_pixel_purchase" || a.action_type === "purchase");
   const metaConvValue = convValueObj ? parseFloat(convValueObj.value) : 0;
+
+  // Leads: pixel lead, form lead ou lead agrupado
+  const leadAction = actions.find(a =>
+    a.action_type === "offsite_conversion.fb_pixel_lead" ||
+    a.action_type === "lead" ||
+    a.action_type === "onsite_conversion.lead_grouped"
+  );
+  const metaLeads = leadAction ? parseInt(leadAction.value) : 0;
+  const costPerLead = metaSummary.cost_per_action_type;
+  const cplObj = Array.isArray(costPerLead) && costPerLead.find(a =>
+    a.action_type === "offsite_conversion.fb_pixel_lead" ||
+    a.action_type === "lead" ||
+    a.action_type === "onsite_conversion.lead_grouped"
+  );
+  const metaCPL = cplObj ? parseFloat(cplObj.value) : (metaLeads > 0 ? metaSpend / metaLeads : 0);
 
   const googleCampaigns = campaigns.filter(c => c.channel === "Google");
   const googleSpend = googleCampaigns.reduce((s, c) => s + parseMoney(c.spend), 0);
@@ -117,13 +132,13 @@ router.get("/", async (req, res) => {
   res.json({
     kpis: [
       { label: "Investimento Total", value: `R$ ${totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, change: 0 },
-      { label: "ROAS Médio", value: `${roas.toFixed(1)}x`, change: 0 },
-      { label: "CPA Médio", value: `R$ ${cpa.toFixed(2)}`, change: 0 },
+      { label: "Leads", value: metaLeads.toLocaleString("pt-BR"), change: 0 },
+      { label: "Custo por Lead", value: metaCPL > 0 ? `R$ ${metaCPL.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "R$ 0,00", change: 0 },
       { label: "CTR Médio", value: `${metaCtr.toFixed(2)}%`, change: 0 },
-      { label: "Conversões", value: totalConv.toString(), change: 0 },
-      { label: "Campanhas Ativas", value: activeCampaigns.toString(), change: 0 },
       { label: "Impressões", value: metaImpressions.toLocaleString("pt-BR"), change: 0 },
-      { label: "Receita Est.", value: `R$ ${Math.round(metaConvValue).toLocaleString("pt-BR")}`, change: 0 },
+      { label: "Campanhas Ativas", value: activeCampaigns.toString(), change: 0 },
+      { label: "CPA Médio", value: `R$ ${cpa.toFixed(2)}`, change: 0 },
+      { label: "ROAS Médio", value: `${roas.toFixed(1)}x`, change: 0 },
     ],
     chartData, pieData, insights, funnelData, connected: true,
   });
