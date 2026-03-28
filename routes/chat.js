@@ -1,7 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
-const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus } = require("../services/meta-ads");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus, getAdInsights } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -260,6 +260,15 @@ async function executeToolCall(toolCall, userId) {
       }
     }
 
+    case "get_ad_insights": {
+      try {
+        const insights = await getAdInsights(userId, args);
+        return JSON.stringify({ success: true, insights, count: insights.length, period: args.date_preset || "last_7d" });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
     case "update_ad": {
       try {
         const result = await metaUpdateAd(userId, args);
@@ -380,7 +389,7 @@ router.post("/", async (req, res) => {
       return url ? { ...c, _visionUrl: url } : null;
     })
     .filter(Boolean)
-    .slice(0, 20);
+    .slice(0, 10); // máx 10 imagens para evitar estouro de memória
 
   console.log(`[Leo Vision] ${creativesWithImages.length} imagens enviadas de ${creatives.length} criativos totais`);
 
@@ -395,7 +404,7 @@ router.post("/", async (req, res) => {
         },
         ...creativesWithImages.map(c => ({
           type: "image_url",
-          image_url: { url: c._visionUrl, detail: "high" },
+          image_url: { url: c._visionUrl, detail: "low" },
         })),
       ],
     };
@@ -410,15 +419,16 @@ router.post("/", async (req, res) => {
   try {
     let response = await chatCompletion(messagesForAI, userData);
     let message = response.choices[0].message;
+    // Loop usa recentHistory (sem imagens) para não reenviar base64 a cada iteração
     const conversationMessages = [
       { role: "system", content: "" }, // placeholder, chatCompletion handles system
-      ...messagesForAI,
+      ...recentHistory,
       message,
     ];
 
     let collectedImages = [];
     let iterations = 0;
-    const MAX_ITERATIONS = 20;
+    const MAX_ITERATIONS = 15;
 
     // Process tool calls in a loop
     while (message.tool_calls && message.tool_calls.length > 0 && iterations < MAX_ITERATIONS) {
@@ -428,10 +438,12 @@ router.post("/", async (req, res) => {
       for (const toolCall of message.tool_calls) {
         console.log(`[Leo Tool] ${toolCall.function.name}:`, toolCall.function.arguments);
         const result = await executeToolCall(toolCall, req.userId);
+        // Trunca tool results muito grandes para não estourar memória
+        const truncatedResult = result.length > 3000 ? result.slice(0, 3000) + "...[truncado]" : result;
         toolResults.push({
           role: "tool",
           tool_call_id: toolCall.id,
-          content: result,
+          content: truncatedResult,
         });
 
         if (toolCall.function.name === "generate_creative") {

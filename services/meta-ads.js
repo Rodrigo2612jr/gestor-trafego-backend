@@ -796,4 +796,57 @@ async function updateAdStatus(userId, { meta_ad_id, status }) {
   return { meta_ad_id, status: metaStatus, success: data.success };
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus };
+// ─── Get Ad Insights (métricas de desempenho) por campanha, adset ou ad ───
+async function getAdInsights(userId, { meta_campaign_id, meta_adset_id, meta_ad_id, date_preset = "last_7d", level = "ad" }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio não encontrado");
+
+  // Resolve ID interno para Meta ID
+  let filterParam = "";
+  if (meta_ad_id) {
+    filterParam = `&filtering=[{"field":"ad.id","operator":"IN","value":["${meta_ad_id}"]}]`;
+  } else if (meta_adset_id) {
+    filterParam = `&filtering=[{"field":"adset.id","operator":"IN","value":["${meta_adset_id}"]}]`;
+    level = "ad";
+  } else if (meta_campaign_id) {
+    let realId = meta_campaign_id;
+    if (String(meta_campaign_id).length < 10) {
+      const db = require("../db/database");
+      const camp = db.findOne("campaigns", c => c.id === parseInt(meta_campaign_id));
+      if (camp?.external_id?.startsWith("meta_")) realId = camp.external_id.replace("meta_", "");
+    }
+    filterParam = `&filtering=[{"field":"campaign.id","operator":"IN","value":["${realId}"]}]`;
+    level = level === "ad" ? "ad" : level;
+  }
+
+  const fields = "ad_name,adset_name,spend,impressions,clicks,ctr,cpc,actions,cost_per_action_type,reach,frequency";
+  const url = `${API}/act_${adAccountId}/insights?fields=${fields}&level=${level}&date_preset=${date_preset}${filterParam}&limit=50&access_token=${encodeURIComponent(token)}`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta Insights erro: ${data.error.message}`);
+
+  return (data.data || []).map(row => {
+    const actions = row.actions || [];
+    const cpa = row.cost_per_action_type || [];
+    const leads = actions.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const cplObj = cpa.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const spend = parseFloat(row.spend || 0);
+    const leadCount = leads ? parseInt(leads.value) : 0;
+    return {
+      ad_name: row.ad_name,
+      adset_name: row.adset_name,
+      spend: `R$ ${spend.toFixed(2)}`,
+      leads: leadCount,
+      cpl: cplObj ? `R$ ${parseFloat(cplObj.value).toFixed(2)}` : (leadCount > 0 ? `R$ ${(spend / leadCount).toFixed(2)}` : "—"),
+      ctr: row.ctr ? `${parseFloat(row.ctr).toFixed(2)}%` : "—",
+      cpc: row.cpc ? `R$ ${parseFloat(row.cpc).toFixed(2)}` : "—",
+      impressions: parseInt(row.impressions || 0),
+      clicks: parseInt(row.clicks || 0),
+    };
+  });
+}
+
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus, getAdInsights };

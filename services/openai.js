@@ -251,6 +251,22 @@ const LEO_TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "get_ad_insights",
+      description: "Busca métricas reais de desempenho (gasto, leads, CPL, CTR, CPC) diretamente da Meta API. Use SEMPRE que o usuário perguntar sobre performance, melhores/piores anúncios, resultados, ou pedir análise de dados. Nunca peça print ou export ao usuário — use essa tool.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_campaign_id: { type: "string", description: "ID interno ou Meta da campanha" },
+          meta_adset_id: { type: "string", description: "Meta AdSet ID para filtrar por conjunto (opcional)" },
+          meta_ad_id: { type: "string", description: "Meta Ad ID para filtrar por anúncio específico (opcional)" },
+          date_preset: { type: "string", enum: ["today", "last_3d", "last_7d", "last_14d", "last_30d", "last_90d"], description: "Período dos dados (padrão: last_7d)" },
+        },
+      },
+    },
+  },
 ];
 
 // ─── Chat completion with full context and tool use ───
