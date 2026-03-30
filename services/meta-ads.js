@@ -2,7 +2,7 @@
 const { getToken } = require("./meta-auth");
 const { findOne } = require("../db/database");
 
-const API = "https://graph.facebook.com/v21.0";
+const API = "https://graph.facebook.com/v22.0";
 
 function getAdAccountId(userId) {
   const tok = findOne("oauth_tokens", t => t.user_id === userId && t.platform === "meta");
@@ -821,7 +821,7 @@ async function getAdInsights(userId, { meta_campaign_id, meta_adset_id, meta_ad_
     level = level === "ad" ? "ad" : level;
   }
 
-  const fields = "ad_name,adset_name,spend,impressions,clicks,ctr,cpc,actions,cost_per_action_type,reach,frequency";
+  const fields = "ad_name,adset_name,campaign_name,spend,impressions,clicks,ctr,cpc,cpm,actions,cost_per_action_type,action_values,reach,frequency,conversions,cost_per_conversion,purchase_roas";
   const url = `${API}/act_${adAccountId}/insights?fields=${fields}&level=${level}&date_preset=${date_preset}${filterParam}&limit=50&access_token=${encodeURIComponent(token)}`;
 
   const res = await fetch(url);
@@ -831,22 +831,236 @@ async function getAdInsights(userId, { meta_campaign_id, meta_adset_id, meta_ad_
   return (data.data || []).map(row => {
     const actions = row.actions || [];
     const cpa = row.cost_per_action_type || [];
+    const actionValues = row.action_values || [];
     const leads = actions.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
     const cplObj = cpa.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const purchases = actions.find(a => ["offsite_conversion.fb_pixel_purchase", "purchase"].includes(a.action_type));
+    const purchaseValue = actionValues.find(a => ["offsite_conversion.fb_pixel_purchase", "purchase"].includes(a.action_type));
     const spend = parseFloat(row.spend || 0);
     const leadCount = leads ? parseInt(leads.value) : 0;
+    const purchaseCount = purchases ? parseInt(purchases.value) : 0;
+    const revenue = purchaseValue ? parseFloat(purchaseValue.value) : 0;
+    const roas = spend > 0 ? revenue / spend : 0;
     return {
-      ad_name: row.ad_name,
-      adset_name: row.adset_name,
+      ad_name: row.ad_name || null,
+      adset_name: row.adset_name || null,
+      campaign_name: row.campaign_name || null,
       spend: `R$ ${spend.toFixed(2)}`,
+      spend_raw: spend,
       leads: leadCount,
       cpl: cplObj ? `R$ ${parseFloat(cplObj.value).toFixed(2)}` : (leadCount > 0 ? `R$ ${(spend / leadCount).toFixed(2)}` : "—"),
+      purchases: purchaseCount,
+      revenue: revenue > 0 ? `R$ ${revenue.toFixed(2)}` : "—",
+      roas: roas > 0 ? `${roas.toFixed(1)}x` : "—",
       ctr: row.ctr ? `${parseFloat(row.ctr).toFixed(2)}%` : "—",
       cpc: row.cpc ? `R$ ${parseFloat(row.cpc).toFixed(2)}` : "—",
+      cpm: row.cpm ? `R$ ${parseFloat(row.cpm).toFixed(2)}` : "—",
       impressions: parseInt(row.impressions || 0),
       clicks: parseInt(row.clicks || 0),
+      reach: parseInt(row.reach || 0),
+      frequency: row.frequency ? parseFloat(row.frequency).toFixed(2) : "—",
     };
   });
 }
 
-module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus, getAdInsights };
+// ─── Account Overview — visão geral da conta com métricas agregadas ───
+async function getAccountOverview(userId, { date_preset = "last_30d" } = {}) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio não encontrado");
+
+  const fields = "spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency";
+
+  // Busca período atual + anterior para comparação
+  const PREV_MAP = {
+    today: "yesterday", yesterday: "last_3d", last_3d: "last_7d", last_7d: "last_14d",
+    last_14d: "last_30d", last_30d: "last_90d", last_90d: "last_90d"
+  };
+  const prevPreset = PREV_MAP[date_preset] || "last_30d";
+
+  const [currentRes, prevRes, campRes] = await Promise.all([
+    fetch(`${API}/act_${adAccountId}/insights?fields=${fields}&date_preset=${date_preset}&access_token=${encodeURIComponent(token)}`),
+    fetch(`${API}/act_${adAccountId}/insights?fields=${fields}&date_preset=${prevPreset}&access_token=${encodeURIComponent(token)}`),
+    fetch(`${API}/act_${adAccountId}/campaigns?fields=id,name,status,daily_budget,lifetime_budget,objective&limit=200&access_token=${encodeURIComponent(token)}`),
+  ]);
+
+  const current = currentRes.ok ? (await currentRes.json()).data?.[0] || {} : {};
+  const prev = prevRes.ok ? (await prevRes.json()).data?.[0] || {} : {};
+  const campaigns = campRes.ok ? (await campRes.json()).data || [] : [];
+
+  function parseMetrics(row) {
+    const actions = row.actions || [];
+    const actionValues = row.action_values || [];
+    const costPerAction = row.cost_per_action_type || [];
+    const leads = actions.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const purchases = actions.find(a => ["offsite_conversion.fb_pixel_purchase", "purchase"].includes(a.action_type));
+    const purchaseValue = actionValues.find(a => ["offsite_conversion.fb_pixel_purchase", "purchase"].includes(a.action_type));
+    const cplObj = costPerAction.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const spend = parseFloat(row.spend || 0);
+    const leadCount = leads ? parseInt(leads.value) : 0;
+    const purchaseCount = purchases ? parseInt(purchases.value) : 0;
+    const revenue = purchaseValue ? parseFloat(purchaseValue.value) : 0;
+    return {
+      spend, impressions: parseInt(row.impressions || 0), clicks: parseInt(row.clicks || 0),
+      ctr: parseFloat(row.ctr || 0), cpc: parseFloat(row.cpc || 0), cpm: parseFloat(row.cpm || 0),
+      reach: parseInt(row.reach || 0), frequency: parseFloat(row.frequency || 0),
+      leads: leadCount, purchases: purchaseCount, revenue,
+      cpl: cplObj ? parseFloat(cplObj.value) : (leadCount > 0 ? spend / leadCount : 0),
+      roas: spend > 0 ? revenue / spend : 0,
+      cpa: purchaseCount > 0 ? spend / purchaseCount : 0,
+    };
+  }
+
+  const c = parseMetrics(current);
+  const p = parseMetrics(prev);
+  function pctChange(curr, previous) { return previous > 0 ? ((curr - previous) / previous * 100) : 0; }
+
+  const activeCampaigns = campaigns.filter(camp => camp.status === "ACTIVE").length;
+  const pausedCampaigns = campaigns.filter(camp => camp.status === "PAUSED").length;
+
+  return {
+    period: date_preset,
+    campaigns: { total: campaigns.length, active: activeCampaigns, paused: pausedCampaigns },
+    metrics: {
+      spend: { value: `R$ ${c.spend.toFixed(2)}`, change: pctChange(c.spend, p.spend).toFixed(1) + "%" },
+      impressions: { value: c.impressions.toLocaleString("pt-BR"), change: pctChange(c.impressions, p.impressions).toFixed(1) + "%" },
+      reach: { value: c.reach.toLocaleString("pt-BR"), change: pctChange(c.reach, p.reach).toFixed(1) + "%" },
+      clicks: { value: c.clicks.toLocaleString("pt-BR"), change: pctChange(c.clicks, p.clicks).toFixed(1) + "%" },
+      ctr: { value: `${c.ctr.toFixed(2)}%`, change: pctChange(c.ctr, p.ctr).toFixed(1) + "%" },
+      cpc: { value: `R$ ${c.cpc.toFixed(2)}`, change: pctChange(c.cpc, p.cpc).toFixed(1) + "%" },
+      cpm: { value: `R$ ${c.cpm.toFixed(2)}`, change: pctChange(c.cpm, p.cpm).toFixed(1) + "%" },
+      frequency: { value: c.frequency.toFixed(2), change: pctChange(c.frequency, p.frequency).toFixed(1) + "%" },
+      leads: { value: c.leads, change: pctChange(c.leads, p.leads).toFixed(1) + "%" },
+      cpl: { value: c.cpl > 0 ? `R$ ${c.cpl.toFixed(2)}` : "—", change: pctChange(c.cpl, p.cpl).toFixed(1) + "%" },
+      purchases: { value: c.purchases, change: pctChange(c.purchases, p.purchases).toFixed(1) + "%" },
+      revenue: { value: c.revenue > 0 ? `R$ ${c.revenue.toFixed(2)}` : "—", change: pctChange(c.revenue, p.revenue).toFixed(1) + "%" },
+      roas: { value: c.roas > 0 ? `${c.roas.toFixed(1)}x` : "—", change: pctChange(c.roas, p.roas).toFixed(1) + "%" },
+      cpa: { value: c.cpa > 0 ? `R$ ${c.cpa.toFixed(2)}` : "—", change: pctChange(c.cpa, p.cpa).toFixed(1) + "%" },
+    },
+  };
+}
+
+// ─── Campaign Breakdown — métricas por campanha ───
+async function getCampaignBreakdown(userId, { date_preset = "last_7d" } = {}) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio não encontrado");
+
+  const fields = "campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency";
+  const url = `${API}/act_${adAccountId}/insights?fields=${fields}&level=campaign&date_preset=${date_preset}&limit=50&access_token=${encodeURIComponent(token)}`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.error) throw new Error(`Meta erro: ${data.error.message}`);
+
+  return (data.data || []).map(row => {
+    const actions = row.actions || [];
+    const actionValues = row.action_values || [];
+    const costPerAction = row.cost_per_action_type || [];
+    const leads = actions.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const purchases = actions.find(a => ["offsite_conversion.fb_pixel_purchase", "purchase"].includes(a.action_type));
+    const purchaseValue = actionValues.find(a => ["offsite_conversion.fb_pixel_purchase", "purchase"].includes(a.action_type));
+    const cplObj = costPerAction.find(a => ["offsite_conversion.fb_pixel_lead", "lead", "onsite_conversion.lead_grouped"].includes(a.action_type));
+    const spend = parseFloat(row.spend || 0);
+    const leadCount = leads ? parseInt(leads.value) : 0;
+    const purchaseCount = purchases ? parseInt(purchases.value) : 0;
+    const revenue = purchaseValue ? parseFloat(purchaseValue.value) : 0;
+    const roas = spend > 0 ? revenue / spend : 0;
+    return {
+      campaign_id: row.campaign_id,
+      campaign_name: row.campaign_name,
+      spend: `R$ ${spend.toFixed(2)}`, spend_raw: spend,
+      impressions: parseInt(row.impressions || 0),
+      clicks: parseInt(row.clicks || 0),
+      reach: parseInt(row.reach || 0),
+      frequency: parseFloat(row.frequency || 0).toFixed(2),
+      ctr: `${parseFloat(row.ctr || 0).toFixed(2)}%`,
+      cpc: `R$ ${parseFloat(row.cpc || 0).toFixed(2)}`,
+      cpm: `R$ ${parseFloat(row.cpm || 0).toFixed(2)}`,
+      leads: leadCount,
+      cpl: cplObj ? `R$ ${parseFloat(cplObj.value).toFixed(2)}` : (leadCount > 0 ? `R$ ${(spend / leadCount).toFixed(2)}` : "—"),
+      purchases: purchaseCount,
+      revenue: revenue > 0 ? `R$ ${revenue.toFixed(2)}` : "—",
+      roas: roas > 0 ? `${roas.toFixed(1)}x` : "—",
+    };
+  }).sort((a, b) => b.spend_raw - a.spend_raw);
+}
+
+// ─── Duplicate AdSet (copia targeting e budget para nova campanha ou mesma) ───
+async function duplicateAdSet(userId, { meta_adset_id, new_campaign_id, new_name, new_daily_budget }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+  const adAccountId = getAdAccountId(userId);
+  if (!adAccountId) throw new Error("ID da conta de anúncio Meta não encontrado");
+
+  // Busca dados do adset original
+  const origRes = await fetch(`${API}/${meta_adset_id}?fields=name,campaign_id,daily_budget,optimization_goal,billing_event,targeting,status,promoted_object,destination_type&access_token=${encodeURIComponent(token)}`);
+  const orig = await origRes.json();
+  if (orig.error) throw new Error(`Erro ao buscar adset original: ${orig.error.message}`);
+
+  const body = {
+    name: new_name || `${orig.name} (cópia)`,
+    campaign_id: new_campaign_id || orig.campaign_id,
+    optimization_goal: orig.optimization_goal,
+    billing_event: orig.billing_event,
+    targeting: orig.targeting,
+    status: "PAUSED",
+  };
+  if (orig.promoted_object) body.promoted_object = orig.promoted_object;
+  if (orig.destination_type) body.destination_type = orig.destination_type;
+  if (new_daily_budget) body.daily_budget = Math.round(new_daily_budget * 100);
+  else if (orig.daily_budget) body.daily_budget = orig.daily_budget;
+
+  const res = await fetch(`${API}/act_${adAccountId}/adsets?access_token=${encodeURIComponent(token)}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Erro ao duplicar adset: ${data.error.message}`);
+  return { id: data.id, name: body.name };
+}
+
+// ─── Update Campaign (nome, budget, status) ───
+async function updateCampaignMeta(userId, { meta_campaign_id, name, daily_budget, status }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  const body = {};
+  if (name) body.name = name;
+  if (status) body.status = status === "Ativa" || status === "ACTIVE" ? "ACTIVE" : "PAUSED";
+  if (daily_budget) body.daily_budget = Math.round(daily_budget * 100);
+
+  const res = await fetch(`${API}/${meta_campaign_id}?access_token=${encodeURIComponent(token)}`, {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Erro ao atualizar campanha: ${data.error.message}`);
+  return { success: true, meta_campaign_id };
+}
+
+// ─── Delete Campaign ───
+async function deleteCampaign(userId, { meta_campaign_id }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  const res = await fetch(`${API}/${meta_campaign_id}?access_token=${encodeURIComponent(token)}`, {
+    method: "DELETE",
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(`Erro ao deletar campanha: ${data.error.message}`);
+  return { success: true, meta_campaign_id };
+}
+
+// ─── Search Interests — busca interesses disponíveis na Meta ───
+async function searchInterests(userId, { query, limit = 10 }) {
+  const token = getToken(userId);
+  if (!token) throw new Error("Meta não está conectado");
+
+  const res = await fetch(`${API}/search?type=adinterest&q=${encodeURIComponent(query)}&limit=${limit}&access_token=${encodeURIComponent(token)}`);
+  const data = await res.json();
+  if (data.error) throw new Error(`Erro ao buscar interesses: ${data.error.message}`);
+  return (data.data || []).map(i => ({ id: i.id, name: i.name, audience_size: i.audience_size_lower_bound + "-" + i.audience_size_upper_bound, topic: i.topic || "" }));
+}
+
+module.exports = { fetchCampaigns, fetchAudiences, createCampaign, updateCampaignStatus, createAdSet, updateAdSet, createAd, updateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus, getAdInsights, getAccountOverview, getCampaignBreakdown, duplicateAdSet, updateCampaignMeta, deleteCampaign, searchInterests };

@@ -1,7 +1,7 @@
 const express = require("express");
 const { findAll, insert, remove, findOne, update } = require("../db/database");
 const { chatCompletion, generateImage, generateAdCopy } = require("../services/openai");
-const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus, getAdInsights } = require("../services/meta-ads");
+const { createCampaign: metaCreateCampaign, updateCampaignStatus: metaUpdateStatus, createAdSet: metaCreateAdSet, updateAdSet: metaUpdateAdSet, createAd: metaCreateAd, updateAd: metaUpdateAd, listAdSetsFromMeta, listPixelsFromMeta, listAdsFromMeta, updateAdStatus, getAdInsights, getAccountOverview, getCampaignBreakdown, duplicateAdSet, updateCampaignMeta, deleteCampaign, searchInterests } = require("../services/meta-ads");
 
 const router = express.Router();
 
@@ -299,6 +299,81 @@ async function executeToolCall(toolCall, userId) {
       return JSON.stringify({ success: true, alert_id: alert.id, message: "Alerta criado!" });
     }
 
+    case "get_account_overview": {
+      try {
+        const overview = await getAccountOverview(userId, args);
+        return JSON.stringify({ success: true, ...overview });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "get_campaign_breakdown": {
+      try {
+        const breakdown = await getCampaignBreakdown(userId, args);
+        return JSON.stringify({ success: true, campaigns: breakdown, count: breakdown.length });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "duplicate_adset": {
+      try {
+        const result = await duplicateAdSet(userId, args);
+        // Salva no DB local
+        insert("adsets", {
+          user_id: userId,
+          name: result.name,
+          external_id: result.id ? `meta_${result.id}` : null,
+          status: "Pausada",
+        });
+        return JSON.stringify({ success: true, meta_adset_id: result.id, name: result.name, message: `Conjunto "${result.name}" duplicado com sucesso (ID: ${result.id})!` });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "update_campaign": {
+      try {
+        const result = await updateCampaignMeta(userId, args);
+        // Atualiza DB local se existir
+        if (args.status || args.name) {
+          update("campaigns",
+            c => c.external_id === `meta_${args.meta_campaign_id}` && c.user_id === userId,
+            () => {
+              const updates = {};
+              if (args.name) updates.name = args.name;
+              if (args.status) updates.status = args.status === "ACTIVE" ? "Ativa" : "Pausada";
+              return updates;
+            }
+          );
+        }
+        return JSON.stringify({ success: true, message: `Campanha ${args.meta_campaign_id} atualizada.` });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "delete_campaign": {
+      try {
+        await deleteCampaign(userId, args);
+        // Remove do DB local
+        remove("campaigns", c => c.external_id === `meta_${args.meta_campaign_id}` && c.user_id === userId);
+        return JSON.stringify({ success: true, message: `Campanha ${args.meta_campaign_id} deletada permanentemente.` });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
+    case "search_interests": {
+      try {
+        const interests = await searchInterests(userId, args);
+        return JSON.stringify({ success: true, interests, count: interests.length });
+      } catch (err) {
+        return JSON.stringify({ success: false, error: err.message });
+      }
+    }
+
     default:
       return JSON.stringify({ error: "Tool não reconhecida" });
   }
@@ -378,42 +453,49 @@ router.post("/", async (req, res) => {
     return { role: m.role === "user" ? "user" : "assistant", content };
   }).filter(m => typeof m.content === "string" && m.content.trim());
 
-  // Inject visual context: include creative images so Leo can actually see them
-  // Priority: data: URL > image_b64 field > https:// URL
-  const creativesWithImages = creatives
-    .map(c => {
-      let url = null;
-      if (c.image_url?.startsWith("data:")) url = c.image_url;
-      else if (c.image_b64) url = `data:image/jpeg;base64,${c.image_b64}`;
-      else if (c.image_url?.startsWith("https://")) url = c.image_url;
-      return url ? { ...c, _visionUrl: url } : null;
-    })
-    .filter(Boolean)
-    .slice(0, 10); // máx 10 imagens para evitar estouro de memória
-
-  console.log(`[Leo Vision] ${creativesWithImages.length} imagens enviadas de ${creatives.length} criativos totais`);
+  // Inject visual context SOMENTE quando o usuário pedir análise de criativos
+  // Isso evita enviar base64 (tokens caros) em toda mensagem
+  const userMsg = text.trim().toLowerCase();
+  const wantsVision = userMsg.includes("analisa criativo") || userMsg.includes("analisa os criativo") ||
+    userMsg.includes("feedback de imagem") || userMsg.includes("avalia as imagens") ||
+    userMsg.includes("analisa imagem") || userMsg.includes("mostra os criativo") ||
+    userMsg.includes("como estão os criativo") || userMsg.includes("qualidade dos criativo");
 
   let messagesForAI = recentHistory;
-  if (creativesWithImages.length > 0) {
-    const visionContext = {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: `[VISÃO REAL DOS CRIATIVOS — você está recebendo as imagens abaixo em alta qualidade. Analise cada uma de verdade: cor dominante, produto visível, texto na imagem, layout, contraste, legibilidade no mobile. NUNCA invente análise. Se uma imagem estiver ilegível, diga exatamente isso. Quando opinar sobre qualidade ou desempenho, cite elementos visuais específicos que você está vendo (ex: "fundo branco com produto centralizado", "texto amarelo na parte inferior", "foto de close no produto"). Criativos enviados:]\n${creativesWithImages.map((c, i) => `${i + 1}. [ID:${c.id}] ${c.name}`).join("\n")}`,
-        },
-        ...creativesWithImages.map(c => ({
-          type: "image_url",
-          image_url: { url: c._visionUrl, detail: "low" },
-        })),
-      ],
-    };
-    // Insert vision context before the last user message
-    messagesForAI = [
-      ...recentHistory.slice(0, -1),
-      visionContext,
-      recentHistory[recentHistory.length - 1],
-    ];
+  if (wantsVision) {
+    const creativesWithImages = creatives
+      .map(c => {
+        let url = null;
+        if (c.image_url?.startsWith("data:")) url = c.image_url;
+        else if (c.image_b64) url = `data:image/jpeg;base64,${c.image_b64}`;
+        else if (c.image_url?.startsWith("https://")) url = c.image_url;
+        return url ? { ...c, _visionUrl: url } : null;
+      })
+      .filter(Boolean)
+      .slice(0, 10);
+
+    console.log(`[Leo Vision] ${creativesWithImages.length} imagens enviadas (pedido explícito)`);
+
+    if (creativesWithImages.length > 0) {
+      const visionContext = {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `[VISÃO REAL DOS CRIATIVOS — analise cada imagem: cor dominante, produto visível, texto, layout, contraste, legibilidade mobile. NUNCA invente. Cite elementos visuais específicos.]\n${creativesWithImages.map((c, i) => `${i + 1}. [ID:${c.id}] ${c.name}`).join("\n")}`,
+          },
+          ...creativesWithImages.map(c => ({
+            type: "image_url",
+            image_url: { url: c._visionUrl, detail: "low" },
+          })),
+        ],
+      };
+      messagesForAI = [
+        ...recentHistory.slice(0, -1),
+        visionContext,
+        recentHistory[recentHistory.length - 1],
+      ];
+    }
   }
 
   try {

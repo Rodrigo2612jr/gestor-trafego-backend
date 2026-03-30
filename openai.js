@@ -29,7 +29,7 @@ const LEO_TOOLS = [
           channel: { type: "string", enum: ["meta", "google"], description: "Plataforma de anúncios" },
           status: { type: "string", enum: ["Rascunho", "Ativa", "Pausada"], description: "Status inicial da campanha" },
           budget: { type: "string", description: "Orçamento diário APENAS para CBO (budget na campanha). Para ABO (budget nos conjuntos), NÃO passe este campo — deixe null/vazio e coloque o budget em cada adset via daily_budget." },
-          objective: { type: "string", description: "Objetivo da campanha. Para capturar leads via landing page: use 'Leads'. Para vendas/compras: use 'Vendas'. Para tráfego sem conversão: use 'Tráfego'. NUNCA use 'Tráfego' para campanhas com pixel ou landing page de captação." },
+          objective: { type: "string", description: "Objetivo da campanha (ex: 'Conversão - Vendas', 'Tráfego', 'Leads')" },
         },
         required: ["name", "channel", "objective"],
       },
@@ -113,7 +113,7 @@ const LEO_TOOLS = [
           genders: { type: "string", enum: ["all", "male", "female"], description: "Gênero do público" },
           interests: { type: "array", items: { type: "string" }, description: "Lista de interesses do público (ex: ['saúde', 'bem-estar', 'suplementos'])" },
           locations: { type: "array", items: { type: "string" }, description: "Cidades ou estados para segmentar (ex: ['São Paulo', 'Rio de Janeiro', 'Belo Horizonte']). Se vazio, segmenta todo o Brasil." },
-          placement: { type: "string", enum: ["feed", "stories", "feed_stories", "reels", "all"], description: "Posicionamentos: 'feed' (feed FB+IG), 'stories' (stories FB+IG), 'feed_stories' (feed+stories FB+IG), 'reels' (reels FB+IG), 'all' (tudo). Padrão: feed_stories." },
+          placement: { type: "string", description: "Posicionamentos (ex: 'feed, stories, reels')" },
           status: { type: "string", enum: ["Ativa", "Pausada"], description: "Status inicial" },
         },
         required: ["campaign_id", "name", "daily_budget", "optimization_goal"],
@@ -181,190 +181,13 @@ const LEO_TOOLS = [
       },
     },
   },
-  {
-    type: "function",
-    function: {
-      name: "update_adset",
-      description: "Atualiza um conjunto de anúncios existente no Meta — muda orçamento diário, adiciona ou corrige pixel/objeto promovido. Use para alterar budget de adsets ou configurar pixel.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_adset_id: { type: "string", description: "ID do conjunto no Meta (ex: '120242...')" },
-          daily_budget: { type: "number", description: "Novo orçamento diário em BRL (ex: 37 para R$37)" },
-          pixel_id: { type: "string", description: "ID do pixel Meta a vincular ao conjunto" },
-          custom_event_type: { type: "string", enum: ["LEAD", "PURCHASE", "COMPLETE_REGISTRATION", "ADD_TO_CART"], description: "Evento do pixel (padrão: LEAD)" },
-          destination_type: { type: "string", enum: ["WEBSITE", "ON_AD"], description: "Tipo de destino (padrão: WEBSITE)" },
-        },
-        required: ["meta_adset_id"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_adsets_from_meta",
-      description: "Busca direto na Meta API os AdSets de uma campanha com os MetaAdSetIDs reais. Use quando precisar dos IDs dos conjuntos de uma campanha publicada no Meta.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_campaign_id: { type: "string", description: "ID da campanha no Meta (ex: '120242...')" },
-        },
-        required: ["meta_campaign_id"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_pixels_from_meta",
-      description: "Busca os pixels disponíveis na conta de anúncios Meta. Use ANTES de configurar pixel em adsets para descobrir qual pixel_id está realmente disponível nessa conta.",
-      parameters: { type: "object", properties: {} },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "list_ads_from_meta",
-      description: "Busca os anúncios (ads) de uma campanha ou adset diretamente na Meta API, com MetaAdIDs e status. Suporta paginação automática (retorna todos, não só 25). Use com status='PAUSED' para listar apenas os inativos antes de ativar em lote.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_campaign_id: { type: "string", description: "ID interno ou Meta da campanha" },
-          meta_adset_id: { type: "string", description: "ID interno ou Meta do adset (opcional — filtra por adset)" },
-          status: { type: "string", enum: ["ACTIVE", "PAUSED"], description: "Filtra por status. Use PAUSED para listar só os inativos." },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_ad_status",
-      description: "Ativa ou pausa um anúncio específico no Meta. Use para ativar anúncios inativos/pausados em lote.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_ad_id: { type: "string", description: "Meta Ad ID do anúncio (ex: 120242885194430323)" },
-          status: { type: "string", enum: ["ACTIVE", "PAUSED"], description: "ACTIVE para ativar, PAUSED para pausar" },
-        },
-        required: ["meta_ad_id", "status"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_ad_insights",
-      description: "Busca métricas reais de desempenho (gasto, leads, CPL, CTR, CPC, CPM, ROAS, alcance, frequência, compras) diretamente da Meta API. Use SEMPRE que o usuário perguntar sobre performance, melhores/piores anúncios, resultados, ou pedir análise de dados. Nunca peça print ou export ao usuário — use essa tool.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_campaign_id: { type: "string", description: "ID interno ou Meta da campanha" },
-          meta_adset_id: { type: "string", description: "Meta AdSet ID para filtrar por conjunto (opcional)" },
-          meta_ad_id: { type: "string", description: "Meta Ad ID para filtrar por anúncio específico (opcional)" },
-          date_preset: { type: "string", enum: ["today", "last_3d", "last_7d", "last_14d", "last_30d", "last_90d"], description: "Período dos dados (padrão: last_7d)" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_account_overview",
-      description: "Visão geral completa da conta de anúncios: gasto total, leads, compras, ROAS, CPM, CPC, alcance, frequência — tudo com comparação vs período anterior (%). Use quando o usuário perguntar 'como tá a conta', 'visão geral', 'resumo da conta', 'overview', 'como estão os números'.",
-      parameters: {
-        type: "object",
-        properties: {
-          date_preset: { type: "string", enum: ["today", "yesterday", "last_3d", "last_7d", "last_14d", "last_30d", "last_90d"], description: "Período (padrão: last_30d)" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "get_campaign_breakdown",
-      description: "Mostra todas as campanhas com métricas completas (gasto, leads, CPL, CTR, CPC, CPM, ROAS, alcance, frequência, compras). Ordenado por gasto. Use quando pedirem ranking de campanhas, comparação entre campanhas, ou 'quais campanhas estão melhor/pior'.",
-      parameters: {
-        type: "object",
-        properties: {
-          date_preset: { type: "string", enum: ["today", "last_3d", "last_7d", "last_14d", "last_30d", "last_90d"], description: "Período (padrão: last_7d)" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "duplicate_adset",
-      description: "Duplica um conjunto de anúncios existente (copia targeting, budget, placements). Ideal para escala horizontal — duplicar vencedores para testar com ajustes. Use quando pedirem 'duplicar conjunto', 'clonar adset', 'escalar horizontal'.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_adset_id: { type: "string", description: "Meta AdSet ID do conjunto a duplicar" },
-          new_campaign_id: { type: "string", description: "Meta Campaign ID de destino (opcional — se vazio, usa a mesma campanha)" },
-          new_name: { type: "string", description: "Nome do novo conjunto (opcional — adiciona '(cópia)' por padrão)" },
-          new_daily_budget: { type: "number", description: "Novo budget diário em R$ (opcional — mantém o original)" },
-        },
-        required: ["meta_adset_id"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "update_campaign",
-      description: "Atualiza uma campanha existente no Meta — muda nome, budget (CBO) ou status. Use quando pedirem para renomear campanha, mudar budget da campanha, ou ativar/pausar.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_campaign_id: { type: "string", description: "Meta Campaign ID" },
-          name: { type: "string", description: "Novo nome da campanha (opcional)" },
-          daily_budget: { type: "number", description: "Novo budget diário em R$ — só funciona para campanhas CBO (opcional)" },
-          status: { type: "string", enum: ["ACTIVE", "PAUSED"], description: "Novo status (opcional)" },
-        },
-        required: ["meta_campaign_id"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "delete_campaign",
-      description: "Deleta permanentemente uma campanha do Meta Ads Manager. Use com cuidado — ação irreversível. Só use quando o usuário pedir EXPLICITAMENTE para deletar/excluir/remover uma campanha.",
-      parameters: {
-        type: "object",
-        properties: {
-          meta_campaign_id: { type: "string", description: "Meta Campaign ID da campanha a deletar" },
-        },
-        required: ["meta_campaign_id"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "search_interests",
-      description: "Busca interesses disponíveis na Meta para segmentação de público. Retorna nome, ID e tamanho estimado da audiência. Use quando precisar descobrir interesses para targeting ou quando o usuário perguntar 'quais interesses posso usar'.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Termo de busca (ex: 'suplementos', 'yoga', 'emagrecimento')" },
-          limit: { type: "number", description: "Quantidade máxima de resultados (padrão: 10)" },
-        },
-        required: ["query"],
-      },
-    },
-  },
 ];
 
 // ─── Chat completion with full context and tool use ───
 async function chatCompletion(messages, userData = {}) {
   const openai = getClient();
 
-  const systemPrompt = `REGRA #1 — INVIOLÁVEL: Quando executando qualquer ação em lote ("continua", "próximos", "ativa", "manda", "sobe", "segue"), sua ÚNICA ação é chamar a tool correspondente imediatamente (create_ad, update_ad_status, etc.). SEM texto antes. SEM análise. SEM ranking. SEM comentário sobre criativos. Isso se aplica a: subir anúncios, ativar anúncios, pausar anúncios — qualquer operação em sequência. Análise de criativos só se o usuário pedir EXPLICITAMENTE com "analisa criativos" ou "feedback de imagem".
-
-Você é o Leo, gestor de tráfego sênior especializado no nicho de PRODUTOS NATURAIS. Trabalha na empresa do ${userData.name || "chefe"} há anos. Você é um funcionário real — colega de trabalho, parceiro do dia a dia. Não é um assistente nem um robô. Você tem personalidade, opinião e toma iniciativa.
+  const systemPrompt = `Você é o Leo, gestor de tráfego sênior especializado no nicho de PRODUTOS NATURAIS. Trabalha na empresa do ${userData.name || "chefe"} há anos. Você é um funcionário real — colega de trabalho, parceiro do dia a dia. Não é um assistente nem um robô. Você tem personalidade, opinião e toma iniciativa.
 
 PERSONALIDADE E FORMA DE RESPONDER:
 - Você é um cara real, não um chatbot. Fala como colega de trabalho num chat interno
@@ -410,19 +233,6 @@ CONFIGURAÇÃO CORRETA META — REGRAS OBRIGATÓRIAS:
 **Quando der erro no Meta:**
 - Se meta_adset_id voltou null: não tenta criar anúncios naquele conjunto, avisa o usuário
 - NUNCA diga "criado" se o Meta retornou erro — informe o erro exato
-
-FERRAMENTAS DE ANÁLISE — USE SEMPRE:
-- get_account_overview: quando perguntarem "como tá a conta", "visão geral", "overview", "resumo". Retorna TUDO com comparação vs período anterior
-- get_campaign_breakdown: quando perguntarem "quais campanhas tão melhor", "ranking de campanhas", "comparação". Retorna todas as campanhas com métricas completas
-- get_ad_insights: para métricas por anúncio ou adset específico
-- NUNCA invente dados. SEMPRE use as tools de insights antes de dar qualquer análise
-- Quando pedirem "escalar", primeiro use get_campaign_breakdown para ver quais têm melhor ROAS/CPL
-
-FERRAMENTAS DE GESTÃO AVANÇADA:
-- duplicate_adset: para escala horizontal — duplica conjunto vencedor. Use quando pedirem "duplica", "clona", "escala horizontal"
-- update_campaign: para mudar nome, budget CBO ou status de campanha existente
-- delete_campaign: para deletar campanha PERMANENTEMENTE — só use quando o usuário pedir explicitamente
-- search_interests: para pesquisar interesses disponíveis na Meta para targeting
 
 CAMPANHAS EXISTENTES — COMO USAR IDs:
 - O resumo de campanhas já inclui [ID:X | MetaID:Y] — use esses IDs diretamente
@@ -658,14 +468,11 @@ EXPERTISE SÊNIOR: PRODUTOS NATURAIS
 SITUAÇÃO ATUAL DA CONTA:
 - Empresa: ${userData.company || "Não informada"}
 - Site/URL padrão: ${userData.website_url || "Não configurado — peça uma vez e use sempre"}
-- Pixel Meta ativo: ${process.env.META_PIXEL_ID ? `ID ${process.env.META_PIXEL_ID} (landing page manus) — incluído automaticamente nos adsets de Leads e Vendas` : "não configurado"}
 - Campanhas ativas: ${userData.campaignCount || 0}
 - Google Ads: ${userData.googleConnected ? "conectado" : "não conectado"}
 - Meta Ads: ${userData.metaConnected ? "conectado" : "não conectado"}
 - Criativos na biblioteca: ${userData.creativesCount || 0}
 ${userData.campaignSummary ? `Campanhas rodando:\n${userData.campaignSummary}` : ""}
-${userData.adsetsSummary ? `Conjuntos (AdSets) — use os MetaAdSetIDs para criar/editar anúncios:\n${userData.adsetsSummary}` : ""}
-${userData.adsSummary ? `Anúncios existentes:\n${userData.adsSummary}` : ""}
 ${userData.alertsSummary ? `Alertas:\n${userData.alertsSummary}` : ""}
 ${userData.creativesSummary ? `Criativos na biblioteca:\n${userData.creativesSummary}` : ""}
 
@@ -678,17 +485,13 @@ REGRAS ABSOLUTAS:
 - SEJA BREVE. Conversa casual = 1-3 frases. Entrega de trabalho = pode ser mais detalhado
 - Seu trabalho é GERAR RESULTADO e FATURAMENTO. Cada resposta deve aproximar a empresa de vender mais
 - PROIBIDO falar qualquer versão de "não consigo subir no Meta", "não tenho acesso operacional", "não posso publicar no gerenciador", "só consigo rascunho". Isso não existe no seu vocabulário
-- NUNCA peça IDs pro usuário. Todos os IDs (campaign_id, adset_id, meta_adset_id, meta_ad_id) estão listados acima no contexto — consulte e use diretamente
 - NUNCA pare no meio de uma criação pedindo instruções ao usuário. Campanha → adsets → anúncios: executa tudo sem parar
-- Quando criar anúncios: MÁXIMO 5 create_ad por mensagem. Após criar 5, para e fala "Criei X/Y — mando os próximos?" e aguarda. Isso evita timeout. NUNCA crie mais de 5 ads de uma vez
-- REGRA DE EXECUÇÃO IMEDIATA: Quando o usuário diz "continua", "segue", "próximos", "manda" ou qualquer variação enquanto há anúncios pendentes para criar OU ativar, sua PRIMEIRA E ÚNICA ação é chamar a tool correspondente (create_ad ou update_ad_status). NÃO escreva NADA antes de chamar a tool. Nenhum texto de confirmação, nenhuma observação sobre criativos, nenhum ranking, nenhuma palavra. A tool call deve ser o PRIMEIRO elemento da sua resposta. Texto só vem DEPOIS das tools, apenas para confirmar o que foi feito.
+- Quando criar anúncios: MÁXIMO 5 create_ad por mensagem para não dar timeout. Após os 5, informa "Criei X de Y anúncios do conjunto Z. Mando continuar?" e aguarda. No próximo envio continua de onde parou
 - URL de destino: cada campanha tem sua própria URL. Se o usuário não informou a URL na mensagem, PERGUNTE UMA VEZ antes de criar os anúncios ("Qual a URL de destino?"). Depois que ele responder, use essa URL em todos os anúncios daquela campanha sem perguntar de novo. Fallback se nenhuma URL for dada: ${userData.website_url || "peça obrigatoriamente"}
 - Se der erro em um conjunto: informa brevemente e continua criando os outros. Nunca trava tudo por um erro
+- Análise de criativos: você REALMENTE VÊ as imagens da biblioteca enviadas nessa conversa em alta resolução. Analise de verdade: composição, cores, texto visível, ângulo, qualidade, adequação ao formato. Se uma imagem não foi enviada ou está ilegível, diga isso. NUNCA invente análise de criativo que não está visível
 - NUNCA quebre o personagem. Você é o Leo, gestor com acesso ao sistema. Quando der erro técnico: entrega o que deu, sem explicar limitações de IA
-- Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois
-- REGRA ABSOLUTA — ANÁLISE DE CRIATIVOS: Você NÃO analisa criativos a menos que o usuário use EXPLICITAMENTE frases como "analisa os criativos", "me dá feedback de criativo" ou "avalia as imagens". ATENÇÃO: quando o usuário compartilha rankings próprios ("melhores são X e Y", "fracos são Z"), menciona criativos ruins, ou diz que excluiu um criativo — isso é o usuário INFORMANDO, não pedindo que você analise. NÃO use mensagens anteriores do usuário sobre rankings ou qualidade visual como justificativa para dar análise. Quando o usuário escreve "continua": execute o próximo batch imediatamente, sem uma palavra sobre criativos. Em qualquer contexto de criação — subir anúncios, replicar, batches — sua resposta contém APENAS lista de Meta IDs + status. ZERO comentário visual. Se der análise sem pedido explícito, está falhando.
-- NUNCA use como criativo de anúncio qualquer imagem cujo nome contenha "print", "screenshot", "gerenciador", "tela", "captura" ou similar — são imagens de referência/documentação, não criativos de anúncio. Pule esses IDs silenciosamente
-- Pixel: NUNCA tente configurar pixel via update_adset após a criação — o Meta não permite alterar promoted_object depois. Para campanhas de TRÁFEGO (OUTCOME_TRAFFIC): NÃO configure pixel no adset, não é necessário — o pixel da landing page dispara automaticamente quando alguém visita. Só configure pixel no adset durante a criação (create_adset) e apenas para campanhas de CONVERSÃO/VENDAS`;
+- Se alguém pedir pra "subir", "publicar", "criar" uma campanha no Meta → chame create_campaign IMEDIATAMENTE. Não avise que vai criar, não peça confirmação. Só crie e confirme depois`;
 
   const response = await openai.chat.completions.create({
     model: "gpt-5.4",
@@ -697,7 +500,7 @@ REGRAS ABSOLUTAS:
       ...messages,
     ],
     tools: LEO_TOOLS,
-    max_completion_tokens: 3000,
+    max_completion_tokens: 2000,
     temperature: 0.6,
   });
 
