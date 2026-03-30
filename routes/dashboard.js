@@ -35,14 +35,32 @@ function extractActions(actions = [], actionValues = [], costPerAction = []) {
   };
 }
 
-async function fetchMetaInsights(token, adAccountId, datePreset) {
+async function fetchMetaInsights(token, adAccountId, datePreset, { campaignId, statusFilter } = {}) {
   try {
     const fields = "spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency";
+
+    // Se filtra por campanha específica, busca insights só dessa campanha
+    let summaryFilter = "";
+    let dailyFilter = "";
+    let campInsightsFilter = "";
+    if (campaignId) {
+      const filter = `&filtering=[{"field":"campaign.id","operator":"IN","value":["${campaignId}"]}]`;
+      summaryFilter = filter;
+      dailyFilter = filter;
+      campInsightsFilter = filter;
+    }
+
+    // Filtro por status para a lista de campanhas
+    let campStatusFilter = "";
+    if (statusFilter && statusFilter !== "ALL") {
+      campStatusFilter = `&filtering=[{"field":"effective_status","operator":"IN","value":["${statusFilter}"]}]`;
+    }
+
     const [summaryRes, dailyRes, campRes, campInsightsRes] = await Promise.all([
-      fetch(`${API}/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}&access_token=${encodeURIComponent(token)}`),
-      fetch(`${API}/act_${adAccountId}/insights?fields=spend,impressions,clicks,actions,action_values&date_preset=${datePreset}&time_increment=1&access_token=${encodeURIComponent(token)}`),
-      fetch(`${API}/act_${adAccountId}/campaigns?fields=id,name,status&limit=200&access_token=${encodeURIComponent(token)}`),
-      fetch(`${API}/act_${adAccountId}/insights?fields=campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency&level=campaign&date_preset=${datePreset}&limit=20&access_token=${encodeURIComponent(token)}`),
+      fetch(`${API}/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}${summaryFilter}&access_token=${encodeURIComponent(token)}`),
+      fetch(`${API}/act_${adAccountId}/insights?fields=spend,impressions,clicks,actions,action_values&date_preset=${datePreset}&time_increment=1${dailyFilter}&access_token=${encodeURIComponent(token)}`),
+      fetch(`${API}/act_${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget&limit=200${campStatusFilter}&access_token=${encodeURIComponent(token)}`),
+      fetch(`${API}/act_${adAccountId}/insights?fields=campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency&level=campaign&date_preset=${datePreset}${campInsightsFilter}&limit=50&access_token=${encodeURIComponent(token)}`),
     ]);
     const summary = summaryRes.ok ? (await summaryRes.json()).data?.[0] || {} : {};
     const daily = dailyRes.ok ? (await dailyRes.json()).data || [] : [];
@@ -50,8 +68,8 @@ async function fetchMetaInsights(token, adAccountId, datePreset) {
     const campInsights = campInsightsRes.ok ? (await campInsightsRes.json()).data || [] : [];
     const activeCampaigns = campData.filter(c => c.status === "ACTIVE").length;
     const pausedCampaigns = campData.filter(c => c.status === "PAUSED").length;
-    return { summary, daily, activeCampaigns, pausedCampaigns, totalCampaigns: campData.length, campInsights };
-  } catch { return { summary: {}, daily: [], activeCampaigns: 0, pausedCampaigns: 0, totalCampaigns: 0, campInsights: [] }; }
+    return { summary, daily, activeCampaigns, pausedCampaigns, totalCampaigns: campData.length, campInsights, campaignsList: campData };
+  } catch { return { summary: {}, daily: [], activeCampaigns: 0, pausedCampaigns: 0, totalCampaigns: 0, campInsights: [], campaignsList: [] }; }
 }
 
 async function fetchMetaPreviousPeriod(token, adAccountId, datePreset) {
@@ -68,9 +86,15 @@ function pctChange(current, previous) {
   return Math.round((current - previous) / Math.abs(previous) * 100);
 }
 
+// Query params suportados:
+//   period: today|7d|14d|30d|90d (padrão: 30d)
+//   campaign_id: Meta Campaign ID para filtrar (ex: 120218406...)
+//   status: ACTIVE|PAUSED|ALL (padrão: ALL)
 router.get("/", async (req, res) => {
   const period = req.query.period || "30d";
   const datePreset = PERIOD_MAP[period] || "last_30d";
+  const campaignId = req.query.campaign_id || null;
+  const statusFilter = (req.query.status || "ALL").toUpperCase();
 
   const allConnections = findAll("connections", r => r.user_id === req.userId);
   const connections = {};
@@ -104,13 +128,13 @@ router.get("/", async (req, res) => {
   }
 
   // Fetch live Meta insights for selected period + previous period for comparison
-  let meta = { summary: {}, daily: [], activeCampaigns: 0, pausedCampaigns: 0, totalCampaigns: 0, campInsights: [] };
+  let meta = { summary: {}, daily: [], activeCampaigns: 0, pausedCampaigns: 0, totalCampaigns: 0, campInsights: [], campaignsList: [] };
   let metaPrev = {};
   if (hasMeta) {
     const tok = findOne("oauth_tokens", t => t.user_id === req.userId && t.platform === "meta");
     if (tok?.access_token && tok?.ad_account_id) {
       [meta, metaPrev] = await Promise.all([
-        fetchMetaInsights(tok.access_token, tok.ad_account_id, datePreset),
+        fetchMetaInsights(tok.access_token, tok.ad_account_id, datePreset, { campaignId, statusFilter }),
         fetchMetaPreviousPeriod(tok.access_token, tok.ad_account_id, datePreset),
       ]);
     }
@@ -245,6 +269,20 @@ router.get("/", async (req, res) => {
       { label: "ROAS Médio", value: `${roas.toFixed(1)}x`, change: pctChange(roas, prevRoas) },
     ],
     chartData, pieData, insights, funnelData, topCampaigns, connected: true,
+    // Filtros ativos
+    filters: {
+      period,
+      campaign_id: campaignId,
+      status: statusFilter,
+    },
+    // Lista de campanhas para dropdown de filtro no frontend
+    campaignsList: meta.campaignsList.map(c => ({
+      id: c.id,
+      name: c.name,
+      status: c.status,
+      objective: c.objective || "",
+      daily_budget: c.daily_budget ? `R$ ${(parseInt(c.daily_budget) / 100).toFixed(2)}` : null,
+    })),
     summary: {
       totalCampaigns: meta.totalCampaigns,
       activeCampaigns: meta.activeCampaigns,
