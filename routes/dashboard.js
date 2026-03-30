@@ -59,15 +59,15 @@ async function fetchMetaInsights(token, adAccountId, datePreset, { campaignId, s
     const [summaryRes, dailyRes, campRes, campInsightsRes] = await Promise.all([
       fetch(`${API}/act_${adAccountId}/insights?fields=${fields}&date_preset=${datePreset}${summaryFilter}&access_token=${encodeURIComponent(token)}`),
       fetch(`${API}/act_${adAccountId}/insights?fields=spend,impressions,clicks,actions,action_values&date_preset=${datePreset}&time_increment=1${dailyFilter}&access_token=${encodeURIComponent(token)}`),
-      fetch(`${API}/act_${adAccountId}/campaigns?fields=id,name,status,objective,daily_budget&limit=200${campStatusFilter}&access_token=${encodeURIComponent(token)}`),
+      fetch(`${API}/act_${adAccountId}/campaigns?fields=id,name,status,effective_status,objective,daily_budget&limit=200${campStatusFilter}&access_token=${encodeURIComponent(token)}`),
       fetch(`${API}/act_${adAccountId}/insights?fields=campaign_id,campaign_name,spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency&level=campaign&date_preset=${datePreset}${campInsightsFilter}&limit=50&access_token=${encodeURIComponent(token)}`),
     ]);
     const summary = summaryRes.ok ? (await summaryRes.json()).data?.[0] || {} : {};
     const daily = dailyRes.ok ? (await dailyRes.json()).data || [] : [];
     const campData = campRes.ok ? (await campRes.json()).data || [] : [];
     const campInsights = campInsightsRes.ok ? (await campInsightsRes.json()).data || [] : [];
-    const activeCampaigns = campData.filter(c => c.status === "ACTIVE").length;
-    const pausedCampaigns = campData.filter(c => c.status === "PAUSED").length;
+    const activeCampaigns = campData.filter(c => c.effective_status === "ACTIVE").length;
+    const pausedCampaigns = campData.filter(c => c.effective_status !== "ACTIVE").length;
     return { summary, daily, activeCampaigns, pausedCampaigns, totalCampaigns: campData.length, campInsights, campaignsList: campData };
   } catch { return { summary: {}, daily: [], activeCampaigns: 0, pausedCampaigns: 0, totalCampaigns: 0, campInsights: [], campaignsList: [] }; }
 }
@@ -279,7 +279,7 @@ router.get("/", async (req, res) => {
     campaignsList: meta.campaignsList.map(c => ({
       id: c.id,
       name: c.name,
-      status: c.status,
+      status: c.effective_status || c.status,
       objective: c.objective || "",
       daily_budget: c.daily_budget ? `R$ ${(parseInt(c.daily_budget) / 100).toFixed(2)}` : null,
     })),
