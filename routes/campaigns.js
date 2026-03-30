@@ -26,9 +26,16 @@ router.get("/", async (req, res) => {
     const fields = "id,name,status,effective_status,objective,daily_budget,lifetime_budget,budget_remaining,created_time,updated_time,buying_type,special_ad_categories";
     const insightFields = "campaign_id,spend,impressions,clicks,ctr,cpc,cpm,actions,action_values,cost_per_action_type,reach,frequency";
 
+    // SEMPRE filtra pela API — sem filtro a Meta retorna deletadas/arquivadas
     let statusParam = "";
-    if (statusFilter === "ACTIVE") statusParam = `&filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]`;
-    else if (statusFilter === "PAUSED") statusParam = `&filtering=[{"field":"effective_status","operator":"IN","value":["PAUSED"]}]`;
+    if (statusFilter === "ACTIVE") {
+      statusParam = `&filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]`;
+    } else if (statusFilter === "PAUSED") {
+      statusParam = `&filtering=[{"field":"effective_status","operator":"IN","value":["PAUSED","CAMPAIGN_PAUSED"]}]`;
+    } else {
+      // ALL = só ACTIVE + PAUSED (exclui DELETED, ARCHIVED, WITH_ISSUES, etc)
+      statusParam = `&filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE","PAUSED","CAMPAIGN_PAUSED"]}]`;
+    }
 
     const [campRes, insightsRes] = await Promise.all([
       fetch(`${API}/act_${tok.ad_account_id}/campaigns?fields=${fields}&limit=200${statusParam}&access_token=${encodeURIComponent(tok.access_token)}`),
@@ -64,13 +71,8 @@ router.get("/", async (req, res) => {
       };
     }
 
-    // Filtra por effective_status quando não veio pelo filtering da API (ex: ALL)
-    let filtered = campData;
-    if (statusFilter === "ACTIVE") filtered = campData.filter(c => c.effective_status === "ACTIVE");
-    else if (statusFilter === "PAUSED") filtered = campData.filter(c => c.effective_status === "PAUSED" || c.effective_status === "CAMPAIGN_PAUSED");
-
     // Monta resposta com dados reais
-    const campaigns = filtered.map(c => {
+    const campaigns = campData.map(c => {
       const m = insightsMap[c.id] || {};
       return {
         meta_campaign_id: c.id,

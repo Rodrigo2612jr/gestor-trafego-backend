@@ -50,10 +50,14 @@ async function fetchMetaInsights(token, adAccountId, datePreset, { campaignId, s
       campInsightsFilter = filter;
     }
 
-    // Filtro por status para a lista de campanhas
+    // Filtro por status para a lista de campanhas (sempre exclui deletadas/arquivadas)
     let campStatusFilter = "";
-    if (statusFilter && statusFilter !== "ALL") {
-      campStatusFilter = `&filtering=[{"field":"effective_status","operator":"IN","value":["${statusFilter}"]}]`;
+    if (statusFilter === "ACTIVE") {
+      campStatusFilter = `&filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE"]}]`;
+    } else if (statusFilter === "PAUSED") {
+      campStatusFilter = `&filtering=[{"field":"effective_status","operator":"IN","value":["PAUSED","CAMPAIGN_PAUSED"]}]`;
+    } else {
+      campStatusFilter = `&filtering=[{"field":"effective_status","operator":"IN","value":["ACTIVE","PAUSED","CAMPAIGN_PAUSED"]}]`;
     }
 
     const [summaryRes, dailyRes, campRes, campInsightsRes] = await Promise.all([
