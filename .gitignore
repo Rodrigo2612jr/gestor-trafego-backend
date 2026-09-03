@@ -3,3 +3,9 @@ data/
 .env
 .vercel
 .env*.local
+
+# .env.production estava COMMITADO neste repo publico (token OIDC da Vercel,
+# ja expirado). Removido em 02/09/2026. Nao versionar env de novo.
+.env
+.env.*
+!.env.example
